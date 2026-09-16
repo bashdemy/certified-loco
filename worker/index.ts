@@ -1,6 +1,7 @@
 import { listActiveProductCategories } from "../src/db/repository";
 
 export interface Env {
+  DATABASE_URL?: string;
   HYPERDRIVE?: {
     connectionString: string;
   };
@@ -18,20 +19,21 @@ export default {
     }
 
     if (url.pathname === "/api/product-categories") {
-      if (!env.HYPERDRIVE) {
+      const connectionString = env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
+
+      if (!connectionString) {
         return Response.json(
           {
             error: "database_not_configured",
-            message: "Configure the HYPERDRIVE binding before using the catalogue API.",
+            message:
+              "Configure DATABASE_URL locally or the HYPERDRIVE binding when deployed.",
           },
           { status: 503 },
         );
       }
 
       try {
-        const categories = await listActiveProductCategories(
-          env.HYPERDRIVE.connectionString,
-        );
+        const categories = await listActiveProductCategories(connectionString);
 
         return Response.json({ data: categories });
       } catch (error) {
