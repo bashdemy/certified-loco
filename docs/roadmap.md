@@ -2,7 +2,7 @@
 
 ## 1. Foundation
 
-React/Vite and TypeScript Worker shell, Wrangler configuration, `/api/health` endpoint, the first catalogue migration/API boundary, unit tests and Cloudflare Access authorization are in place. Next add audit events, then expand the CRM beyond product categories.
+React/Vite and TypeScript Worker shell, Wrangler configuration, `/api/health` endpoint, the first catalogue migration/API boundary, unit tests, Cloudflare Access authorization and audit events are in place. The CRM is now extending into certificate identity and immutable revisions.
 
 ## 2. Knowledge CRM
 

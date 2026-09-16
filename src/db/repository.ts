@@ -2,7 +2,13 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
 import { type ProductCategoryTranslationInput } from "../domain/product-category-translations";
-import { auditEvents, productCategories, productCategoryTranslations } from "./schema";
+import {
+  auditEvents,
+  certificateRevisions,
+  certificates,
+  productCategories,
+  productCategoryTranslations,
+} from "./schema";
 
 export type ProductCategoryWithTranslations = {
   id: string;
@@ -21,6 +27,26 @@ export type AuditEventSummary = {
   entityType: string;
   entityId: string;
   requestId: string;
+  createdAt: Date;
+};
+
+export type CertificateRecord = {
+  id: string;
+  certificateNumber: string;
+  status: string;
+  version: number;
+  revisionNumber: number;
+  productCategoryId: string;
+  productCategoryCode: string;
+  productName: string;
+  productModel: string | null;
+  manufacturer: string;
+  applicant: string | null;
+  regulationCode: string;
+  certificationScheme: string | null;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  createdByEmail: string;
   createdAt: Date;
 };
 
@@ -133,6 +159,116 @@ export async function listRecentAuditEvents(connectionString: string, limit = 50
       .from(auditEvents)
       .orderBy(desc(auditEvents.createdAt))
       .limit(Math.min(Math.max(limit, 1), 100));
+  } finally {
+    await client.end();
+  }
+}
+
+export async function listCertificates(connectionString: string, limit = 100) {
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    const db = drizzle(client);
+
+    return await db
+      .select({
+        id: certificates.id,
+        certificateNumber: certificates.certificateNumber,
+        status: certificates.status,
+        version: certificates.version,
+        revisionNumber: certificateRevisions.revisionNumber,
+        productCategoryId: certificateRevisions.productCategoryId,
+        productCategoryCode: productCategories.code,
+        productName: certificateRevisions.productName,
+        productModel: certificateRevisions.productModel,
+        manufacturer: certificateRevisions.manufacturer,
+        applicant: certificateRevisions.applicant,
+        regulationCode: certificateRevisions.regulationCode,
+        certificationScheme: certificateRevisions.certificationScheme,
+        issuedAt: certificateRevisions.issuedAt,
+        expiresAt: certificateRevisions.expiresAt,
+        createdByEmail: certificateRevisions.createdByEmail,
+        createdAt: certificateRevisions.createdAt,
+      })
+      .from(certificates)
+      .innerJoin(
+        certificateRevisions,
+        eq(certificates.id, certificateRevisions.certificateId),
+      )
+      .innerJoin(
+        productCategories,
+        eq(certificateRevisions.productCategoryId, productCategories.id),
+      )
+      .where(eq(certificates.status, "active"))
+      .orderBy(desc(certificateRevisions.createdAt))
+      .limit(Math.min(Math.max(limit, 1), 100));
+  } finally {
+    await client.end();
+  }
+}
+
+export async function createCertificate(
+  connectionString: string,
+  input: {
+    certificateNumber: string;
+    productCategoryId: string;
+    productName: string;
+    productModel?: string | null;
+    manufacturer: string;
+    applicant?: string | null;
+    regulationCode: string;
+    certificationScheme?: string | null;
+    issuedAt?: string | null;
+    expiresAt?: string | null;
+    actorEmail: string;
+    requestId: string;
+  },
+) {
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    const db = drizzle(client);
+
+    return await db.transaction(async (tx) => {
+      const [certificate] = await tx
+        .insert(certificates)
+        .values({ certificateNumber: input.certificateNumber })
+        .returning();
+
+      const [revision] = await tx
+        .insert(certificateRevisions)
+        .values({
+          certificateId: certificate.id,
+          revisionNumber: 1,
+          productCategoryId: input.productCategoryId,
+          productName: input.productName,
+          productModel: input.productModel ?? null,
+          manufacturer: input.manufacturer,
+          applicant: input.applicant ?? null,
+          regulationCode: input.regulationCode,
+          certificationScheme: input.certificationScheme ?? null,
+          issuedAt: input.issuedAt ?? null,
+          expiresAt: input.expiresAt ?? null,
+          createdByEmail: input.actorEmail,
+        })
+        .returning();
+
+      const after = { certificate, revision };
+
+      await tx.insert(auditEvents).values({
+        actorEmail: input.actorEmail,
+        action: "create",
+        entityType: "certificate",
+        entityId: certificate.id,
+        requestId: input.requestId,
+        beforeJson: null,
+        afterJson: after,
+      });
+
+      return after;
+    });
   } finally {
     await client.end();
   }
