@@ -5,6 +5,7 @@ import i18n, { type Locale } from "../i18n/config";
 
 type HealthState = "checking" | "ok" | "error";
 type CatalogueState = "loading" | "ready" | "error";
+type AuditState = "loading" | "ready" | "error" | "hidden";
 
 type ProductCategory = {
   id: string;
@@ -21,6 +22,16 @@ type CategoryDraft = {
   id: string;
   version: number;
   translations: ProductCategory["translations"];
+};
+
+type AuditEvent = {
+  id: string;
+  actorEmail: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  requestId: string;
+  createdAt: string;
 };
 
 const healthStyles: Record<HealthState, string> = {
@@ -43,7 +54,9 @@ function App() {
   const { t } = useTranslation();
   const [health, setHealth] = useState<HealthState>("checking");
   const [catalogueState, setCatalogueState] = useState<CatalogueState>("loading");
+  const [auditState, setAuditState] = useState<AuditState>("loading");
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [locale, setLocale] = useState<Locale>((i18n.language as Locale) || "en");
   const [draft, setDraft] = useState<CategoryDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -67,6 +80,19 @@ function App() {
         setCatalogueState("ready");
       })
       .catch(() => setCatalogueState("error"));
+
+    fetch("/api/audit-events")
+      .then(async (response) => {
+        if (response.status === 403) {
+          setAuditState("hidden");
+          return;
+        }
+        if (!response.ok) throw new Error("Audit request failed");
+        const result = (await response.json()) as { data: AuditEvent[] };
+        setAuditEvents(result.data);
+        setAuditState("ready");
+      })
+      .catch(() => setAuditState("error"));
   }, []);
 
   const changeLocale = (nextLocale: Locale) => {
@@ -363,6 +389,51 @@ function App() {
         )}
         {saveMessage && <p className="mt-4 text-sm text-amber-700">{saveMessage}</p>}
       </section>
+
+      {auditState !== "hidden" && (
+        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-extrabold tracking-[0.11em] text-slate-500 uppercase">
+                {t("reviewAndPublish")}
+              </p>
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                {t("auditHistory")}
+              </h2>
+            </div>
+          </div>
+
+          {auditState === "loading" && (
+            <p className="text-slate-500">{t("loadingCatalogue")}</p>
+          )}
+          {auditState === "error" && (
+            <p className="text-rose-700">{t("auditUnavailable")}</p>
+          )}
+          {auditState === "ready" && auditEvents.length === 0 && (
+            <p className="text-slate-500">{t("noAuditEvents")}</p>
+          )}
+          {auditState === "ready" && auditEvents.length > 0 && (
+            <div className="divide-y divide-slate-200">
+              {auditEvents.map((event) => (
+                <article
+                  className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  key={event.id}
+                >
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      {event.action} {event.entityType}
+                    </p>
+                    <p className="text-sm text-slate-500">{event.actorEmail}</p>
+                  </div>
+                  <time className="text-sm text-slate-500" dateTime={event.createdAt}>
+                    {new Date(event.createdAt).toLocaleString(locale)}
+                  </time>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </main>
   );
 }

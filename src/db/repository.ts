@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
 import { type ProductCategoryTranslationInput } from "../domain/product-category-translations";
@@ -12,6 +12,16 @@ export type ProductCategoryWithTranslations = {
   createdAt: Date;
   updatedAt: Date;
   translations: ProductCategoryTranslationInput[];
+};
+
+export type AuditEventSummary = {
+  id: string;
+  actorEmail: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  requestId: string;
+  createdAt: Date;
 };
 
 function groupCategoryRows(
@@ -98,6 +108,31 @@ export async function getProductCategory(connectionString: string, id: string) {
         })),
       )[0] ?? null
     );
+  } finally {
+    await client.end();
+  }
+}
+
+export async function listRecentAuditEvents(connectionString: string, limit = 50) {
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    const db = drizzle(client);
+
+    return await db
+      .select({
+        id: auditEvents.id,
+        actorEmail: auditEvents.actorEmail,
+        action: auditEvents.action,
+        entityType: auditEvents.entityType,
+        entityId: auditEvents.entityId,
+        requestId: auditEvents.requestId,
+        createdAt: auditEvents.createdAt,
+      })
+      .from(auditEvents)
+      .orderBy(desc(auditEvents.createdAt))
+      .limit(Math.min(Math.max(limit, 1), 100));
   } finally {
     await client.end();
   }

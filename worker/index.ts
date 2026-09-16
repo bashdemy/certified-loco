@@ -1,6 +1,7 @@
 import {
   getProductCategory,
   listActiveProductCategories,
+  listRecentAuditEvents,
   updateProductCategory,
 } from "../src/db/repository";
 import { parseProductCategoryTranslations } from "../src/domain/product-category-translations";
@@ -32,6 +33,37 @@ export default {
     }
 
     const categoryIdMatch = url.pathname.match(/^\/api\/product-categories\/([^/]+)$/);
+
+    if (url.pathname === "/api/audit-events") {
+      const user = await authenticateRequest(request, env);
+
+      if (!user) {
+        return Response.json(
+          { error: "authentication_required" },
+          { status: 401, headers: { "WWW-Authenticate": "Cloudflare Access" } },
+        );
+      }
+
+      if (user.role !== "admin") {
+        return Response.json({ error: "admin_required" }, { status: 403 });
+      }
+
+      if (request.method !== "GET")
+        return new Response("Method not allowed", { status: 405 });
+
+      const connectionString = getConnectionString(env);
+      if (!connectionString) {
+        return Response.json({ error: "database_not_configured" }, { status: 503 });
+      }
+
+      try {
+        const events = await listRecentAuditEvents(connectionString);
+        return Response.json({ data: events });
+      } catch (error) {
+        console.error("Failed to read audit events", error);
+        return Response.json({ error: "audit_unavailable" }, { status: 503 });
+      }
+    }
 
     if (url.pathname === "/api/product-categories" || categoryIdMatch) {
       const user = await authenticateRequest(request, env);

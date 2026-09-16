@@ -39,6 +39,9 @@ const resources = {
       description: "Description",
       versionConflict: "This record changed elsewhere. The latest version is shown.",
       saveFailed: "Could not save this record.",
+      auditHistory: "Audit history",
+      auditUnavailable: "Audit history unavailable.",
+      noAuditEvents: "No catalogue changes recorded yet.",
     },
   },
   ru: {
@@ -78,6 +81,9 @@ const resources = {
       description: "Описание",
       versionConflict: "Запись была изменена. Показана последняя версия.",
       saveFailed: "Не удалось сохранить запись.",
+      auditHistory: "История изменений",
+      auditUnavailable: "История изменений недоступна.",
+      noAuditEvents: "Изменений каталога пока нет.",
     },
   },
   kk: {
@@ -117,6 +123,9 @@ const resources = {
       description: "Сипаттама",
       versionConflict: "Жазба өзгертілді. Соңғы нұсқа көрсетілді.",
       saveFailed: "Жазбаны сақтау мүмкін болмады.",
+      auditHistory: "Өзгерістер тарихы",
+      auditUnavailable: "Өзгерістер тарихы қолжетімсіз.",
+      noAuditEvents: "Каталогта әлі өзгеріс жоқ.",
     },
   },
 } as const;
