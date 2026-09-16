@@ -5,11 +5,14 @@ Initial sources include EAEU technical regulations/registers, KazCSZHT public ma
 
 Assessments must not depend on live external websites.
 
+Manual certificate and test-programme entry is the first vertical slice. When PDF ingestion is added, use this deployable pipeline:
+
 ## Pipeline
 ```text
 source document
  -> R2 immutable object
- -> queue
+ -> Queue job
+ -> Worker consumer
  -> extract
  -> normalise
  -> candidate records
@@ -18,10 +21,12 @@ source document
 ```
 
 ## Documents
-Store content hash, source, retrieval/upload date, type, effective dates, language and extraction status. Do not repeatedly send unchanged documents to an LLM.
+Store content hash, source, retrieval/upload date, type, effective dates, language, R2 object key and extraction status. Do not repeatedly process unchanged documents. Replacements create new objects and revisions.
+
+Jobs have explicit states, attempt counts, error details and timestamps. Claiming, retrying and completing a job must be idempotent. The queue is an ingestion boundary, not a general application messaging system.
 
 ## AI extraction
-AI output uses a validated structured schema. Regulatory extraction creates candidate records only. Certificate extraction may pre-fill CRM fields, which users confirm before assessment.
+Do not use an LLM in the first deterministic assessment path. If later added, use it only to pre-fill certificate fields or create regulatory candidates. A human must confirm results before they affect an assessment.
 
 ## Localisation
 UI resources: `ru`, `kk`, `en`. Do not use runtime LLM translation for UI strings.

@@ -5,7 +5,10 @@
 - [Data integrity](data-integrity.md) — transactions, concurrency, revisions and audit.
 - [Assessment engine](assessment-engine.md) — test determination.
 - [Ingestion](ingestion.md) — documents, regulatory data and AI.
+- [Testing strategy](testing-strategy.md) — free, risk-based checks for the POC.
 - [Roadmap](roadmap.md) — implementation order.
+- [AI implementation plan](implementation-plan-ai.md) — phased plan for a coding agent.
+- [Owner implementation plan](implementation-plan-owner.md) — accounts, deployment and human decisions.
 
 ## Constraints
 - PostgreSQL is the system of record.
@@ -13,3 +16,5 @@
 - Assessments are reproducible snapshots.
 - AI assists extraction/classification; it is not regulatory authority.
 - Start as a modular monolith.
+- The MVP is deployable through Cloudflare with PostgreSQL as the system of record.
+- Cloud services are added only at the boundary where they provide deployment or scale value.
