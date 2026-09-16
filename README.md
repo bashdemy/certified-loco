@@ -34,3 +34,7 @@ certified-loco/
 ```
 
 See [`docs/README.md`](docs/README.md) for the implementation documentation.
+
+## Formatting
+
+Run `npm run format` to format source, styles, configuration and documentation. Run `npm run format:check` to verify formatting without changing files.
