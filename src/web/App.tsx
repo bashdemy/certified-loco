@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 
 type HealthState = "checking" | "ok" | "error";
+type CatalogueState = "loading" | "ready" | "error";
+
+type ProductCategory = {
+  id: string;
+  code: string;
+  nameRu: string;
+  nameKk: string;
+  nameEn: string;
+  description: string | null;
+};
 
 const healthStyles: Record<HealthState, string> = {
   checking: "bg-amber-100 text-amber-900",
@@ -10,6 +20,8 @@ const healthStyles: Record<HealthState, string> = {
 
 function App() {
   const [health, setHealth] = useState<HealthState>("checking");
+  const [catalogueState, setCatalogueState] = useState<CatalogueState>("loading");
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
 
   useEffect(() => {
     fetch("/api/health")
@@ -18,6 +30,17 @@ function App() {
         setHealth("ok");
       })
       .catch(() => setHealth("error"));
+
+    fetch("/api/product-categories")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Catalogue request failed");
+        const result = (await response.json()) as {
+          data: ProductCategory[];
+        };
+        setCategories(result.data);
+        setCatalogueState("ready");
+      })
+      .catch(() => setCatalogueState("error"));
   }, []);
 
   return (
@@ -60,7 +83,7 @@ function App() {
         </button>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3" aria-label="Application areas">
+      <section className="mb-4 grid gap-4 sm:grid-cols-3" aria-label="Application areas">
         <article className="min-h-44 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <span className="mb-8 block text-xs font-extrabold text-blue-600">01</span>
           <h3 className="mb-2 text-lg font-bold text-slate-900">Assessments</h3>
@@ -82,6 +105,52 @@ function App() {
             Approve regulatory changes before users can rely on them.
           </p>
         </article>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-1 text-xs font-extrabold tracking-[0.11em] text-slate-500 uppercase">
+              Connected data
+            </p>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              Product categories
+            </h2>
+          </div>
+          <span className="text-sm text-slate-500">
+            {catalogueState === "ready" ? `${categories.length} records` : ""}
+          </span>
+        </div>
+
+        {catalogueState === "loading" && (
+          <p className="text-slate-500">Loading catalogue…</p>
+        )}
+        {catalogueState === "error" && (
+          <p className="text-rose-700">
+            Catalogue unavailable. Check the local database connection.
+          </p>
+        )}
+        {catalogueState === "ready" && categories.length === 0 && (
+          <p className="text-slate-500">No product categories have been seeded yet.</p>
+        )}
+        {catalogueState === "ready" && categories.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {categories.map((category) => (
+              <article
+                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                key={category.id}
+              >
+                <p className="mb-1 text-xs font-extrabold tracking-wide text-blue-600 uppercase">
+                  {category.code}
+                </p>
+                <h3 className="mb-1 text-lg font-bold text-slate-900">
+                  {category.nameEn}
+                </h3>
+                <p className="text-sm text-slate-500">{category.nameRu}</p>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

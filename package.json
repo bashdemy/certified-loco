@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "db:seed": "tsx src/db/seed.ts",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
