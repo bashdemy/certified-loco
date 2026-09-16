@@ -8,10 +8,18 @@ type CatalogueState = "loading" | "ready" | "error";
 type ProductCategory = {
   id: string;
   code: string;
-  nameRu: string;
-  nameKk: string;
-  nameEn: string;
-  description: string | null;
+  version: number;
+  translations: Array<{
+    locale: Locale;
+    name: string;
+    description: string | null;
+  }>;
+};
+
+type CategoryDraft = {
+  id: string;
+  version: number;
+  translations: ProductCategory["translations"];
 };
 
 const healthStyles: Record<HealthState, string> = {
@@ -27,9 +35,12 @@ const localeLabels: Record<Locale, string> = {
 };
 
 function getCategoryName(category: ProductCategory, locale: Locale) {
-  if (locale === "ru") return category.nameRu;
-  if (locale === "kk") return category.nameKk;
-  return category.nameEn;
+  return (
+    category.translations.find((translation) => translation.locale === locale)?.name ??
+    category.translations.find((translation) => translation.locale === "en")?.name ??
+    category.translations[0]?.name ??
+    category.code
+  );
 }
 
 function App() {
@@ -38,6 +49,9 @@ function App() {
   const [catalogueState, setCatalogueState] = useState<CatalogueState>("loading");
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [locale, setLocale] = useState<Locale>((i18n.language as Locale) || "ru");
+  const [draft, setDraft] = useState<CategoryDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/health")
@@ -62,6 +76,76 @@ function App() {
   const changeLocale = (nextLocale: Locale) => {
     void i18n.changeLanguage(nextLocale);
     setLocale(nextLocale);
+  };
+
+  const startEditing = (category: ProductCategory) => {
+    setSaveMessage(null);
+    setDraft({
+      id: category.id,
+      version: category.version,
+      translations: category.translations.map((translation) => ({ ...translation })),
+    });
+  };
+
+  const cancelEditing = () => setDraft(null);
+
+  const updateDraft = (
+    localeToUpdate: Locale,
+    field: "name" | "description",
+    value: string,
+  ) => {
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            translations: current.translations.map((translation) =>
+              translation.locale === localeToUpdate
+                ? { ...translation, [field]: value }
+                : translation,
+            ),
+          }
+        : current,
+    );
+  };
+
+  const saveCategory = async () => {
+    if (!draft) return;
+
+    setSaving(true);
+    setSaveMessage(null);
+
+    try {
+      const response = await fetch(`/api/product-categories/${draft.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const result = (await response.json()) as { data?: ProductCategory };
+
+      if (response.status === 409 && result.data) {
+        setCategories((current) =>
+          current.map((category) =>
+            category.id === result.data?.id ? result.data : category,
+          ),
+        );
+        setDraft(null);
+        setSaveMessage(t("versionConflict"));
+        return;
+      }
+
+      if (!response.ok || !result.data) throw new Error("Save failed");
+
+      setCategories((current) =>
+        current.map((category) =>
+          category.id === result.data?.id ? result.data : category,
+        ),
+      );
+      setDraft(null);
+    } catch {
+      setSaveMessage(t("saveFailed"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -176,19 +260,112 @@ function App() {
                 className="rounded-xl border border-slate-200 bg-slate-50 p-4"
                 key={category.id}
               >
-                <p className="mb-1 text-xs font-extrabold tracking-wide text-blue-600 uppercase">
-                  {category.code}
-                </p>
-                <h3 className="mb-1 text-lg font-bold text-slate-900">
-                  {getCategoryName(category, locale)}
-                </h3>
-                {locale !== "ru" && (
-                  <p className="text-sm text-slate-500">{category.nameRu}</p>
+                {draft?.id === category.id ? (
+                  <div className="space-y-3">
+                    <p className="text-xs font-extrabold tracking-wide text-blue-600 uppercase">
+                      {category.code}
+                    </p>
+                    {(["en", "ru", "kk"] as Locale[]).map((translationLocale) => {
+                      const translation = draft.translations.find(
+                        (item) => item.locale === translationLocale,
+                      );
+                      if (!translation) return null;
+
+                      const label =
+                        translationLocale === "en"
+                          ? t("englishName")
+                          : translationLocale === "ru"
+                            ? t("russianName")
+                            : t("kazakhName");
+
+                      return (
+                        <label
+                          className="block text-sm font-semibold text-slate-700"
+                          key={translationLocale}
+                        >
+                          {label}
+                          <input
+                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900"
+                            value={translation.name}
+                            onChange={(event) =>
+                              updateDraft(translationLocale, "name", event.target.value)
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                    <label className="block text-sm font-semibold text-slate-700">
+                      {t("description")}
+                      <textarea
+                        className="mt-1 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900"
+                        value={
+                          draft.translations.find((item) => item.locale === "en")
+                            ?.description ?? ""
+                        }
+                        onChange={(event) =>
+                          updateDraft("en", "description", event.target.value)
+                        }
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+                        type="button"
+                        onClick={() => void saveCategory()}
+                        disabled={saving}
+                      >
+                        {saving ? t("saving") : t("save")}
+                      </button>
+                      <button
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+                        type="button"
+                        onClick={cancelEditing}
+                        disabled={saving}
+                      >
+                        {t("cancel")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="mb-1 text-xs font-extrabold tracking-wide text-blue-600 uppercase">
+                          {category.code}
+                        </p>
+                        <h3 className="mb-1 text-lg font-bold text-slate-900">
+                          {getCategoryName(category, locale)}
+                        </h3>
+                        {locale !== "en" && (
+                          <p className="text-sm text-slate-500">
+                            {getCategoryName(category, "en")}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+                        type="button"
+                        onClick={() => startEditing(category)}
+                      >
+                        {t("edit")}
+                      </button>
+                    </div>
+                    {category.translations.find((item) => item.locale === "en")
+                      ?.description && (
+                      <p className="mt-3 text-sm leading-relaxed text-slate-500">
+                        {
+                          category.translations.find((item) => item.locale === "en")
+                            ?.description
+                        }
+                      </p>
+                    )}
+                  </>
                 )}
               </article>
             ))}
           </div>
         )}
+        {saveMessage && <p className="mt-4 text-sm text-amber-700">{saveMessage}</p>}
       </section>
     </main>
   );

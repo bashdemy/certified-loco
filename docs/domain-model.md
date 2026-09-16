@@ -2,7 +2,9 @@
 
 ## Product Category
 
-Regulatory classification of a railway part. Categories may be hierarchical, e.g. `Wheelset -> Wagon` and `Wheelset -> Locomotive`. Classification must be specific enough to determine requirements. Store the authoritative/source-language name and human-approved `ru`/`kk`/`en` labels with the catalogue record; UI labels remain in the application localisation resources.
+Regulatory classification of a railway part. Categories may be hierarchical, e.g. `Wheelset -> Wagon` and `Wheelset -> Locomotive`. Classification must be specific enough to determine requirements.
+
+The category record stores stable identity and lifecycle fields. Human-editable names and descriptions live in a separate translation record keyed by `(category, locale)`. English (`en`) is the canonical baseline and must exist; Russian and Kazakh are additional translations. UI labels remain in the application localisation resources.
 
 ## Certificate
 

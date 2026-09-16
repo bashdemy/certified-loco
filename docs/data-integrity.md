@@ -18,6 +18,8 @@ WHERE id = $2 AND version = $3;
 
 Zero rows means a concurrent edit occurred. The UI should let the user reconcile values.
 
+Translation edits update the parent record version in the same transaction as replacing its translation rows. This prevents two users from silently overwriting one another across languages.
+
 ## Transactions
 
 Use transactions for atomic domain operations such as publishing a regulatory dataset, finalising an assessment, approving related requirements, or creating a certificate revision. Use row locks only for short operations that cannot safely run concurrently.
