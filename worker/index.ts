@@ -4,9 +4,13 @@ import {
   updateProductCategory,
 } from "../src/db/repository";
 import { parseProductCategoryTranslations } from "../src/domain/product-category-translations";
+import { authenticateRequest } from "../src/infrastructure/auth/cloudflare-access";
 
 export interface Env {
   DATABASE_URL?: string;
+  ACCESS_TEAM_DOMAIN?: string;
+  ACCESS_AUDIENCE?: string;
+  ADMIN_EMAILS?: string;
   HYPERDRIVE?: {
     connectionString: string;
   };
@@ -30,6 +34,19 @@ export default {
     const categoryIdMatch = url.pathname.match(/^\/api\/product-categories\/([^/]+)$/);
 
     if (url.pathname === "/api/product-categories" || categoryIdMatch) {
+      const user = await authenticateRequest(request, env);
+
+      if (!user) {
+        return Response.json(
+          { error: "authentication_required" },
+          { status: 401, headers: { "WWW-Authenticate": "Cloudflare Access" } },
+        );
+      }
+
+      if (categoryIdMatch && user.role !== "admin") {
+        return Response.json({ error: "admin_required" }, { status: 403 });
+      }
+
       const connectionString = getConnectionString(env);
 
       if (!connectionString) {
@@ -66,6 +83,8 @@ export default {
             id: decodeURIComponent(categoryIdMatch[1]),
             version,
             translations,
+            actorEmail: user.email,
+            requestId: request.headers.get("X-Request-ID") ?? crypto.randomUUID(),
           });
 
           if (updated) return Response.json({ data: updated });

@@ -22,6 +22,13 @@
       "when": 1789541000000,
       "tag": "0002_clear_non_english_descriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789543411683,
+      "tag": "0003_last_trauma",
+      "breakpoints": true
     }
   ]
 }

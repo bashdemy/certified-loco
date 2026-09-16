@@ -18,6 +18,7 @@
   "dependencies": {
     "drizzle-orm": "latest",
     "i18next": "latest",
+    "jose": "^6.2.12",
     "pg": "latest",
     "react": "latest",
     "react-dom": "latest",

@@ -1,5 +1,7 @@
 import {
   integer,
+  index,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -35,8 +37,30 @@ export const productCategoryTranslations = pgTable(
   (table) => [primaryKey({ columns: [table.productCategoryId, table.locale] })],
 );
 
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    actorEmail: varchar("actor_email", { length: 320 }).notNull(),
+    action: varchar("action", { length: 100 }).notNull(),
+    entityType: varchar("entity_type", { length: 100 }).notNull(),
+    entityId: uuid("entity_id").notNull(),
+    requestId: varchar("request_id", { length: 100 }).notNull(),
+    reason: text("reason"),
+    beforeJson: jsonb("before_json"),
+    afterJson: jsonb("after_json"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("audit_events_entity_idx").on(table.entityType, table.entityId),
+    index("audit_events_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export type ProductCategory = typeof productCategories.$inferSelect;
 export type NewProductCategory = typeof productCategories.$inferInsert;
 export type ProductCategoryTranslation = typeof productCategoryTranslations.$inferSelect;
 export type NewProductCategoryTranslation =
   typeof productCategoryTranslations.$inferInsert;
+export type AuditEvent = typeof auditEvents.$inferSelect;
+export type NewAuditEvent = typeof auditEvents.$inferInsert;

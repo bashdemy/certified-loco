@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
 import { type ProductCategoryTranslationInput } from "../domain/product-category-translations";
-import { productCategories, productCategoryTranslations } from "./schema";
+import { auditEvents, productCategories, productCategoryTranslations } from "./schema";
 
 export type ProductCategoryWithTranslations = {
   id: string;
@@ -109,6 +109,9 @@ export async function updateProductCategory(
     id: string;
     version: number;
     translations: ProductCategoryTranslationInput[];
+    actorEmail: string;
+    requestId: string;
+    reason?: string | null;
   },
 ) {
   const client = new Client({ connectionString });
@@ -118,6 +121,24 @@ export async function updateProductCategory(
     const db = drizzle(client);
 
     return await db.transaction(async (tx) => {
+      const beforeRows = await tx
+        .select()
+        .from(productCategories)
+        .leftJoin(
+          productCategoryTranslations,
+          eq(productCategories.id, productCategoryTranslations.productCategoryId),
+        )
+        .where(eq(productCategories.id, input.id))
+        .orderBy(asc(productCategoryTranslations.locale));
+      const before = groupCategoryRows(
+        beforeRows.map((row) => ({
+          category: row.product_categories,
+          translation: row.product_category_translations,
+        })),
+      )[0];
+
+      if (!before) return null;
+
       const updated = await tx
         .update(productCategories)
         .set({
@@ -145,10 +166,23 @@ export async function updateProductCategory(
         })),
       );
 
-      return {
+      const after = {
         ...updated[0],
         translations: input.translations,
       };
+
+      await tx.insert(auditEvents).values({
+        actorEmail: input.actorEmail,
+        action: "update",
+        entityType: "product_category",
+        entityId: input.id,
+        requestId: input.requestId,
+        reason: input.reason ?? null,
+        beforeJson: before,
+        afterJson: after,
+      });
+
+      return after;
     });
   } finally {
     await client.end();

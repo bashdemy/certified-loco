@@ -40,6 +40,8 @@ Assessments use only published datasets. Publishing validates references and cha
 
 Material mutations record actor, timestamp, entity, action, before/after values, request ID and optional reason. Regulatory changes should require a reason.
 
+Catalogue updates write the audit event in the same PostgreSQL transaction as the category and translation changes. If the edit rolls back, its audit event rolls back too. If the edit succeeds, the event is available in `audit_events` for later history screens and export.
+
 ## Deletion
 
 Archive important records instead of hard deleting them. Source-document replacements create new revisions.

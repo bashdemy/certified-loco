@@ -2,7 +2,7 @@
 
 ## 1. Foundation
 
-React/Vite and TypeScript Worker shell, Wrangler configuration, `/api/health` endpoint and the first `product_categories` migration/API boundary are in place. Next configure PostgreSQL/Hyperdrive and seed the first catalogue records, then add users, audit events and optimistic concurrency.
+React/Vite and TypeScript Worker shell, Wrangler configuration, `/api/health` endpoint, the first catalogue migration/API boundary, unit tests and Cloudflare Access authorization are in place. Next add audit events, then expand the CRM beyond product categories.
 
 ## 2. Knowledge CRM
 

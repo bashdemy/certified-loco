@@ -30,7 +30,8 @@ Keep secrets outside the repository. Prepare values for:
 
 - PostgreSQL connection/configuration;
 - Hyperdrive binding;
-- session or authentication secrets;
+- Cloudflare Access team domain and application audience;
+- administrator email allowlist;
 - email provider credentials, if used;
 - application environment name;
 - allowed application origin.
