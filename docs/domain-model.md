@@ -2,7 +2,7 @@
 
 ## Product Category
 
-Regulatory classification of a railway part. Categories may be hierarchical, e.g. `Wheelset -> Wagon` and `Wheelset -> Locomotive`. Classification must be specific enough to determine requirements.
+Regulatory classification of a railway part. Categories may be hierarchical, e.g. `Wheelset -> Wagon` and `Wheelset -> Locomotive`. Classification must be specific enough to determine requirements. Store the authoritative/source-language name and human-approved `ru`/`kk`/`en` labels with the catalogue record; UI labels remain in the application localisation resources.
 
 ## Certificate
 

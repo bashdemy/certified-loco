@@ -15,9 +15,11 @@
   },
   "dependencies": {
     "drizzle-orm": "latest",
+    "i18next": "latest",
     "pg": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "react-i18next": "latest"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "latest",

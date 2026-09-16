@@ -55,6 +55,10 @@ PostgreSQL stores the CRM and regulatory knowledge. It is needed for relationshi
 
 R2 stores PDFs and attachments. PostgreSQL stores the document metadata, content hash, source, provenance and review state. Replacing a document creates a revision; it never silently overwrites the old source.
 
+### Localisation
+
+UI labels, buttons, statuses and help text live in TypeScript localisation resources for `ru`, `kk` and `en`. Catalogue and regulatory names are different: they are domain content, so their human-approved translations live with the record in PostgreSQL and are selected using the active UI language. Runtime machine translation is not authoritative.
+
 ### Queue
 
 Long-running work such as PDF extraction should not hold an API request open. A Queue-backed job can be retried and processed separately. This is a later boundary, not a reason to split the application into microservices now.

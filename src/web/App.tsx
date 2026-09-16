@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n, { type Locale } from "../i18n/config";
 
 type HealthState = "checking" | "ok" | "error";
 type CatalogueState = "loading" | "ready" | "error";
@@ -18,10 +20,24 @@ const healthStyles: Record<HealthState, string> = {
   error: "bg-rose-100 text-rose-900",
 };
 
+const localeLabels: Record<Locale, string> = {
+  en: "English",
+  ru: "Русский",
+  kk: "Қазақша",
+};
+
+function getCategoryName(category: ProductCategory, locale: Locale) {
+  if (locale === "ru") return category.nameRu;
+  if (locale === "kk") return category.nameKk;
+  return category.nameEn;
+}
+
 function App() {
+  const { t } = useTranslation();
   const [health, setHealth] = useState<HealthState>("checking");
   const [catalogueState, setCatalogueState] = useState<CatalogueState>("loading");
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [locale, setLocale] = useState<Locale>((i18n.language as Locale) || "ru");
 
   useEffect(() => {
     fetch("/api/health")
@@ -43,66 +59,88 @@ function App() {
       .catch(() => setCatalogueState("error"));
   }, []);
 
+  const changeLocale = (nextLocale: Locale) => {
+    void i18n.changeLanguage(nextLocale);
+    setLocale(nextLocale);
+  };
+
   return (
     <main className="mx-auto w-[calc(100%-2rem)] max-w-6xl bg-slate-50 py-8 pb-16 text-slate-900 sm:py-12">
       <header className="mb-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <p className="mb-2 text-xs font-extrabold tracking-[0.11em] text-slate-500 uppercase">
-            Railway certification workspace
+            {t("appEyebrow")}
           </p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Certified Loco
+            {t("appName")}
           </h1>
         </div>
-        <span
-          className={`rounded-full px-3 py-2 text-xs font-extrabold ${healthStyles[health]}`}
-        >
-          {health === "checking" && "Checking API"}
-          {health === "ok" && "API connected"}
-          {health === "error" && "API unavailable"}
-        </span>
+        <div className="flex flex-col items-start gap-3 sm:items-end">
+          <span
+            className={`rounded-full px-3 py-2 text-xs font-extrabold ${healthStyles[health]}`}
+          >
+            {health === "checking" && t("checkingApi")}
+            {health === "ok" && t("apiConnected")}
+            {health === "error" && t("apiUnavailable")}
+          </span>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <span className="sr-only">Language</span>
+            <select
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              value={locale}
+              onChange={(event) => changeLocale(event.target.value as Locale)}
+            >
+              {(Object.keys(localeLabels) as Locale[]).map((language) => (
+                <option key={language} value={language}>
+                  {localeLabels[language]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </header>
 
       <section className="mb-4 rounded-[22px] bg-slate-900 p-6 text-slate-100 shadow-xl sm:p-12">
         <p className="mb-2 text-xs font-extrabold tracking-[0.11em] text-slate-400 uppercase">
-          First release
+          {t("firstRelease")}
         </p>
         <h2 className="mb-4 max-w-3xl text-4xl leading-tight font-bold tracking-[-0.04em] text-white sm:text-6xl">
-          Certification assessments with evidence you can review.
+          {t("headline")}
         </h2>
         <p className="mb-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-          Start with a confirmed certificate, compare historical tests with the published
-          regulatory dataset, and keep the source behind every result.
+          {t("intro")}
         </p>
         <button
           className="cursor-not-allowed rounded-[10px] bg-blue-600 px-4 py-3 font-bold text-white opacity-60"
           type="button"
           disabled
         >
-          New assessment — coming next
+          {t("newAssessment")}
         </button>
       </section>
 
-      <section className="mb-4 grid gap-4 sm:grid-cols-3" aria-label="Application areas">
+      <section className="mb-4 grid gap-4 sm:grid-cols-3" aria-label={t("appName")}>
         <article className="min-h-44 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <span className="mb-8 block text-xs font-extrabold text-blue-600">01</span>
-          <h3 className="mb-2 text-lg font-bold text-slate-900">Assessments</h3>
-          <p className="leading-relaxed text-slate-500">
-            Compare a part&apos;s historical programme with current requirements.
-          </p>
+          <h3 className="mb-2 text-lg font-bold text-slate-900">{t("assessments")}</h3>
+          <p className="leading-relaxed text-slate-500">{t("assessmentsDescription")}</p>
         </article>
         <article className="min-h-44 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <span className="mb-8 block text-xs font-extrabold text-blue-600">02</span>
-          <h3 className="mb-2 text-lg font-bold text-slate-900">Knowledge catalogue</h3>
+          <h3 className="mb-2 text-lg font-bold text-slate-900">
+            {t("knowledgeCatalogue")}
+          </h3>
           <p className="leading-relaxed text-slate-500">
-            Maintain parts, tests, standards, regulations and certificates.
+            {t("knowledgeCatalogueDescription")}
           </p>
         </article>
         <article className="min-h-44 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <span className="mb-8 block text-xs font-extrabold text-blue-600">03</span>
-          <h3 className="mb-2 text-lg font-bold text-slate-900">Review and publish</h3>
+          <h3 className="mb-2 text-lg font-bold text-slate-900">
+            {t("reviewAndPublish")}
+          </h3>
           <p className="leading-relaxed text-slate-500">
-            Approve regulatory changes before users can rely on them.
+            {t("reviewAndPublishDescription")}
           </p>
         </article>
       </section>
@@ -111,27 +149,25 @@ function App() {
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-extrabold tracking-[0.11em] text-slate-500 uppercase">
-              Connected data
+              {t("connectedData")}
             </p>
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-              Product categories
+              {t("productCategories")}
             </h2>
           </div>
           <span className="text-sm text-slate-500">
-            {catalogueState === "ready" ? `${categories.length} records` : ""}
+            {catalogueState === "ready" ? `${categories.length} ${t("records")}` : ""}
           </span>
         </div>
 
         {catalogueState === "loading" && (
-          <p className="text-slate-500">Loading catalogue…</p>
+          <p className="text-slate-500">{t("loadingCatalogue")}</p>
         )}
         {catalogueState === "error" && (
-          <p className="text-rose-700">
-            Catalogue unavailable. Check the local database connection.
-          </p>
+          <p className="text-rose-700">{t("catalogueUnavailable")}</p>
         )}
         {catalogueState === "ready" && categories.length === 0 && (
-          <p className="text-slate-500">No product categories have been seeded yet.</p>
+          <p className="text-slate-500">{t("noCategories")}</p>
         )}
         {catalogueState === "ready" && categories.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -144,9 +180,11 @@ function App() {
                   {category.code}
                 </p>
                 <h3 className="mb-1 text-lg font-bold text-slate-900">
-                  {category.nameEn}
+                  {getCategoryName(category, locale)}
                 </h3>
-                <p className="text-sm text-slate-500">{category.nameRu}</p>
+                {locale !== "ru" && (
+                  <p className="text-sm text-slate-500">{category.nameRu}</p>
+                )}
               </article>
             ))}
           </div>
