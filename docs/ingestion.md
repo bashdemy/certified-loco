@@ -34,6 +34,6 @@ Do not use an LLM in the first deterministic assessment path. If later added, us
 
 ## Localisation
 
-UI resources: `ru`, `kk`, `en`. Do not use runtime LLM translation for UI strings.
+UI resources use English as the baseline, with `ru` and `kk` supported. Do not use runtime LLM translation for UI strings.
 
 Retain authoritative regulatory text in its source language; store human-approved translations separately when needed.

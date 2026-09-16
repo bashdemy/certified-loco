@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getLocalizedName } from "../domain/product-category-translations";
 import i18n, { type Locale } from "../i18n/config";
 
 type HealthState = "checking" | "ok" | "error";
@@ -35,12 +36,7 @@ const localeLabels: Record<Locale, string> = {
 };
 
 function getCategoryName(category: ProductCategory, locale: Locale) {
-  return (
-    category.translations.find((translation) => translation.locale === locale)?.name ??
-    category.translations.find((translation) => translation.locale === "en")?.name ??
-    category.translations[0]?.name ??
-    category.code
-  );
+  return getLocalizedName(category.translations, locale) ?? category.code;
 }
 
 function App() {
@@ -48,7 +44,7 @@ function App() {
   const [health, setHealth] = useState<HealthState>("checking");
   const [catalogueState, setCatalogueState] = useState<CatalogueState>("loading");
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [locale, setLocale] = useState<Locale>((i18n.language as Locale) || "ru");
+  const [locale, setLocale] = useState<Locale>((i18n.language as Locale) || "en");
   const [draft, setDraft] = useState<CategoryDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);

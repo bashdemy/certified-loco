@@ -1,13 +1,8 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
+import { type ProductCategoryTranslationInput } from "../domain/product-category-translations";
 import { productCategories, productCategoryTranslations } from "./schema";
-
-export type ProductCategoryTranslationInput = {
-  locale: string;
-  name: string;
-  description: string | null;
-};
 
 export type ProductCategoryWithTranslations = {
   id: string;
@@ -49,23 +44,31 @@ export async function listActiveProductCategories(connectionString: string) {
   try {
     const db = drizzle(client);
 
-    const rows = await db
+    const categories = await db
       .select()
       .from(productCategories)
-      .leftJoin(
-        productCategoryTranslations,
-        eq(productCategories.id, productCategoryTranslations.productCategoryId),
-      )
       .where(eq(productCategories.status, "active"))
-      .orderBy(asc(productCategories.code), asc(productCategoryTranslations.locale))
+      .orderBy(asc(productCategories.code))
       .limit(100);
+    if (categories.length === 0) return [];
 
-    return groupCategoryRows(
-      rows.map((row) => ({
-        category: row.product_categories,
-        translation: row.product_category_translations,
-      })),
-    );
+    const translations = await db
+      .select()
+      .from(productCategoryTranslations)
+      .where(
+        inArray(
+          productCategoryTranslations.productCategoryId,
+          categories.map((category) => category.id),
+        ),
+      )
+      .orderBy(asc(productCategoryTranslations.locale));
+
+    return categories.map((category) => ({
+      ...category,
+      translations: translations.filter(
+        (translation) => translation.productCategoryId === category.id,
+      ),
+    }));
   } finally {
     await client.end();
   }

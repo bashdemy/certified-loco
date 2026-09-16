@@ -57,7 +57,7 @@ R2 stores PDFs and attachments. PostgreSQL stores the document metadata, content
 
 ### Localisation
 
-UI labels, buttons, statuses and help text live in TypeScript localisation resources for `ru`, `kk` and `en`. Catalogue and regulatory names are different: they are domain content, so their human-approved translations live with the record in PostgreSQL and are selected using the active UI language. Runtime machine translation is not authoritative.
+UI labels, buttons, statuses and help text live in TypeScript localisation resources, with English as the baseline and `ru`/`kk` as supported UI languages. Catalogue and regulatory names are different: they are domain content, so their human-approved translations live in PostgreSQL translation records and are selected using the active UI language. Runtime machine translation is not authoritative.
 
 ### Queue
 

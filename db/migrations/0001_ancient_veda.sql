@@ -10,9 +10,9 @@ ALTER TABLE "product_category_translations" ADD CONSTRAINT "product_category_tra
 INSERT INTO "product_category_translations" ("product_category_id", "locale", "name", "description")
 SELECT "id", 'en', "name_en", "description" FROM "product_categories"
 UNION ALL
-SELECT "id", 'ru', "name_ru", "description" FROM "product_categories"
+SELECT "id", 'ru', "name_ru", NULL FROM "product_categories"
 UNION ALL
-SELECT "id", 'kk', "name_kk", "description" FROM "product_categories";--> statement-breakpoint
+SELECT "id", 'kk', "name_kk", NULL FROM "product_categories";--> statement-breakpoint
 ALTER TABLE "product_categories" DROP COLUMN "name_ru";--> statement-breakpoint
 ALTER TABLE "product_categories" DROP COLUMN "name_kk";--> statement-breakpoint
 ALTER TABLE "product_categories" DROP COLUMN "name_en";--> statement-breakpoint

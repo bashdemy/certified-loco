@@ -3,6 +3,7 @@ import {
   listActiveProductCategories,
   updateProductCategory,
 } from "../src/db/repository";
+import { parseProductCategoryTranslations } from "../src/domain/product-category-translations";
 
 export interface Env {
   DATABASE_URL?: string;
@@ -11,47 +12,8 @@ export interface Env {
   };
 }
 
-const supportedLocales = ["en", "ru", "kk"] as const;
-
 function getConnectionString(env: Env) {
   return env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
-}
-
-function parseTranslations(value: unknown) {
-  if (!Array.isArray(value)) return null;
-
-  const translations = value.map((item) => {
-    if (!item || typeof item !== "object") return null;
-    const translation = item as Record<string, unknown>;
-    const locale = typeof translation.locale === "string" ? translation.locale : "";
-    const name = typeof translation.name === "string" ? translation.name.trim() : "";
-    const description =
-      translation.description == null ? null : String(translation.description).trim();
-
-    if (
-      !supportedLocales.includes(locale as (typeof supportedLocales)[number]) ||
-      !name
-    ) {
-      return null;
-    }
-
-    return { locale, name, description };
-  });
-
-  if (
-    translations.some((translation) => translation === null) ||
-    new Set(translations.map((translation) => translation?.locale)).size !==
-      translations.length ||
-    !translations.some((translation) => translation?.locale === "en")
-  ) {
-    return null;
-  }
-
-  return translations as Array<{
-    locale: string;
-    name: string;
-    description: string | null;
-  }>;
 }
 
 export default {
@@ -88,14 +50,13 @@ export default {
 
           const body = (await request.json()) as Record<string, unknown>;
           const version = Number(body.version);
-          const translations = parseTranslations(body.translations);
+          const translations = parseProductCategoryTranslations(body.translations);
 
           if (!Number.isInteger(version) || version < 1 || !translations) {
             return Response.json(
               {
                 error: "invalid_product_category",
-                message:
-                  "version and English, Russian, and Kazakh translations are required.",
+                message: "version and an English translation are required.",
               },
               { status: 400 },
             );

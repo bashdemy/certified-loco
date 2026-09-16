@@ -57,7 +57,10 @@ async function seed() {
               productCategoryId,
               locale,
               name,
-              description: "Development catalogue record for the first assessment slice.",
+              description:
+                locale === "en"
+                  ? "Development catalogue record for the first assessment slice."
+                  : null,
             }));
           }),
         )

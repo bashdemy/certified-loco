@@ -15,6 +15,13 @@
       "when": 1789540104100,
       "tag": "0001_ancient_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789541000000,
+      "tag": "0002_clear_non_english_descriptions",
+      "breakpoints": true
     }
   ]
 }
