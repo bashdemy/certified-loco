@@ -21,6 +21,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "latest",
     "@cloudflare/workers-types": "latest",
+    "@tailwindcss/vite": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/node": "latest",
@@ -29,6 +30,8 @@
     "dotenv": "latest",
     "drizzle-kit": "latest",
     "prettier": "latest",
+    "prettier-plugin-tailwindcss": "latest",
+    "tailwindcss": "latest",
     "tsx": "latest",
     "typescript": "latest",
     "vite": "latest",

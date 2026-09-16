@@ -12,3 +12,4 @@ The application is one deployable Worker, but its responsibilities stay separate
 - `i18n/` — UI translation resources.
 
 Keep domain code independent of Worker request objects and Cloudflare bindings.
+Use Tailwind utility classes for UI styling. Keep the CSS entrypoint limited to Tailwind imports and documented theme definitions.

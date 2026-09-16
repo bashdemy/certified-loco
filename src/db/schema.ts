@@ -19,12 +19,8 @@ export const productCategories = pgTable(
     description: text("description"),
     status: varchar("status", { length: 20 }).notNull().default("active"),
     version: integer("version").notNull().default(1),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("product_categories_code_idx").on(table.code)],
 );

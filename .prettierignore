@@ -1,0 +1,10 @@
+.git/
+.wrangler/
+coverage/
+dist/
+node_modules/
+data/private/
+db/migrations/
+package-lock.json
+*.min.css
+*.min.js

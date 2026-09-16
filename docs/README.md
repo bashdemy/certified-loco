@@ -11,6 +11,7 @@
 - [Owner implementation plan](implementation-plan-owner.md) — accounts, deployment and human decisions.
 
 ## Constraints
+
 - PostgreSQL is the system of record.
 - Regulatory data is versioned and reviewed.
 - Assessments are reproducible snapshots.

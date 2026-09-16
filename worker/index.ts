@@ -36,10 +36,7 @@ export default {
         return Response.json({ data: categories });
       } catch (error) {
         console.error("Failed to read product categories", error);
-        return Response.json(
-          { error: "catalogue_unavailable" },
-          { status: 503 },
-        );
+        return Response.json({ error: "catalogue_unavailable" }, { status: 503 });
       }
     }
 
