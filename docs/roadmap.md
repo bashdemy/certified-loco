@@ -1,7 +1,7 @@
 # Roadmap
 
 ## 1. Foundation
-Monorepo, React/Vite, TypeScript Worker API, Wrangler configuration, PostgreSQL/migrations, Hyperdrive connection, R2 bucket, seeded `admin`/`user` roles, audit events and optimistic concurrency. Add a repeatable local test command before building domain features.
+React/Vite and TypeScript Worker shell, Wrangler configuration, `/api/health` endpoint and the first `product_categories` migration/API boundary are in place. Next configure PostgreSQL/Hyperdrive and seed the first catalogue records, then add users, audit events and optimistic concurrency.
 
 ## 2. Knowledge CRM
 CRUD/search for product categories, certificates, standards/versions, regulations/versions, tests, requirements and evidence. Archive instead of hard delete.

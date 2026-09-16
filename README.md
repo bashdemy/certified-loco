@@ -10,13 +10,13 @@ The repository contains one deployable Cloudflare Worker application with React/
 certified-loco/
 ├── src/
 │   ├── web/              React/Vite UI
-│   ├── worker/           Cloudflare Worker entrypoint and HTTP routes
 │   ├── domain/           Certification rules and domain types
 │   ├── application/      Use cases and transaction boundaries
 │   ├── db/               Drizzle schema and repositories
 │   ├── infrastructure/   Cloudflare, auth and storage adapters
 │   ├── shared/           Shared validation and API contracts
 │   └── i18n/              Russian, Kazakh and English resources
+├── worker/               Cloudflare Worker entrypoint and HTTP routes
 ├── db/
 │   ├── migrations/       Database migrations
 │   └── seeds/            Development and reviewed seed data
