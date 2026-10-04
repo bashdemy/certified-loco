@@ -6,6 +6,7 @@ import i18n, { type Locale } from "../i18n/config";
 type HealthState = "checking" | "ok" | "error";
 type CatalogueState = "loading" | "ready" | "error";
 type AuditState = "loading" | "ready" | "error" | "hidden";
+type CertificateState = "loading" | "ready" | "error";
 
 type ProductCategory = {
   id: string;
@@ -34,6 +35,39 @@ type AuditEvent = {
   createdAt: string;
 };
 
+type Certificate = {
+  id: string;
+  certificateNumber: string;
+  status: string;
+  version: number;
+  revisionNumber: number;
+  productCategoryId: string;
+  productCategoryCode: string;
+  productName: string;
+  productModel: string | null;
+  manufacturer: string;
+  applicant: string | null;
+  regulationCode: string;
+  certificationScheme: string | null;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  createdByEmail: string;
+  createdAt: string;
+};
+
+type CertificateDraft = {
+  certificateNumber: string;
+  productCategoryId: string;
+  productName: string;
+  productModel: string;
+  manufacturer: string;
+  applicant: string;
+  regulationCode: string;
+  certificationScheme: string;
+  issuedAt: string;
+  expiresAt: string;
+};
+
 const healthStyles: Record<HealthState, string> = {
   checking: "bg-amber-100 text-amber-900",
   ok: "bg-emerald-100 text-emerald-900",
@@ -55,12 +89,17 @@ function App() {
   const [health, setHealth] = useState<HealthState>("checking");
   const [catalogueState, setCatalogueState] = useState<CatalogueState>("loading");
   const [auditState, setAuditState] = useState<AuditState>("loading");
+  const [certificateState, setCertificateState] = useState<CertificateState>("loading");
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [locale, setLocale] = useState<Locale>((i18n.language as Locale) || "en");
   const [draft, setDraft] = useState<CategoryDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [certificateDraft, setCertificateDraft] = useState<CertificateDraft | null>(null);
+  const [creatingCertificate, setCreatingCertificate] = useState(false);
+  const [certificateMessage, setCertificateMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/health")
@@ -93,6 +132,15 @@ function App() {
         setAuditState("ready");
       })
       .catch(() => setAuditState("error"));
+
+    fetch("/api/certificates")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Certificates request failed");
+        const result = (await response.json()) as { data: Certificate[] };
+        setCertificates(result.data);
+        setCertificateState("ready");
+      })
+      .catch(() => setCertificateState("error"));
   }, []);
 
   const changeLocale = (nextLocale: Locale) => {
@@ -167,6 +215,61 @@ function App() {
       setSaveMessage(t("saveFailed"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const startCertificate = () => {
+    setCertificateMessage(null);
+    setCertificateDraft({
+      certificateNumber: "",
+      productCategoryId: categories[0]?.id ?? "",
+      productName: "",
+      productModel: "",
+      manufacturer: "",
+      applicant: "",
+      regulationCode: "ТР ТС 001/2011",
+      certificationScheme: "",
+      issuedAt: "",
+      expiresAt: "",
+    });
+  };
+
+  const updateCertificateDraft = (field: keyof CertificateDraft, value: string) => {
+    setCertificateDraft((current) =>
+      current ? { ...current, [field]: value } : current,
+    );
+  };
+
+  const loadCertificates = async () => {
+    const response = await fetch("/api/certificates");
+    if (!response.ok) throw new Error("Certificates request failed");
+    const result = (await response.json()) as { data: Certificate[] };
+    setCertificates(result.data);
+    setCertificateState("ready");
+  };
+
+  const createCertificateRecord = async () => {
+    if (!certificateDraft) return;
+
+    setCreatingCertificate(true);
+    setCertificateMessage(null);
+
+    try {
+      const response = await fetch("/api/certificates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(certificateDraft),
+      });
+
+      if (!response.ok) throw new Error("Certificate creation failed");
+
+      await loadCertificates();
+      setCertificateDraft(null);
+      setCertificateMessage(t("certificateCreated"));
+    } catch {
+      setCertificateMessage(t("certificateFailed"));
+    } finally {
+      setCreatingCertificate(false);
     }
   };
 
@@ -249,6 +352,142 @@ function App() {
             {t("reviewAndPublishDescription")}
           </p>
         </article>
+      </section>
+
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-1 text-xs font-extrabold tracking-[0.11em] text-slate-500 uppercase">
+              {t("knowledgeCatalogue")}
+            </p>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              {t("certificates")}
+            </h2>
+          </div>
+          {!certificateDraft && (
+            <button
+              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white"
+              type="button"
+              onClick={startCertificate}
+            >
+              {t("newCertificate")}
+            </button>
+          )}
+        </div>
+
+        {certificateDraft && (
+          <div className="mb-5 grid gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2">
+            {(
+              [
+                ["certificateNumber", "certificateNumber"],
+                ["productName", "productName"],
+                ["productModel", "productModel"],
+                ["manufacturer", "manufacturer"],
+                ["applicant", "applicant"],
+                ["regulationCode", "regulationCode"],
+                ["certificationScheme", "certificationScheme"],
+                ["issuedAt", "issuedAt"],
+                ["expiresAt", "expiresAt"],
+              ] as Array<[keyof CertificateDraft, string]>
+            ).map(([field, labelKey]) => (
+              <label className="block text-sm font-semibold text-slate-700" key={field}>
+                {t(labelKey)}
+                <input
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900"
+                  type={field === "issuedAt" || field === "expiresAt" ? "date" : "text"}
+                  value={certificateDraft[field]}
+                  onChange={(event) => updateCertificateDraft(field, event.target.value)}
+                />
+              </label>
+            ))}
+            <label className="block text-sm font-semibold text-slate-700">
+              {t("productCategory")}
+              <select
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900"
+                value={certificateDraft.productCategoryId}
+                onChange={(event) =>
+                  updateCertificateDraft("productCategoryId", event.target.value)
+                }
+              >
+                <option value="">{t("selectCategory")}</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {getCategoryName(category, "en")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex items-end gap-2 sm:col-span-2">
+              <button
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+                type="button"
+                onClick={() => void createCertificateRecord()}
+                disabled={creatingCertificate || !certificateDraft.productCategoryId}
+              >
+                {creatingCertificate ? t("creating") : t("create")}
+              </button>
+              <button
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+                type="button"
+                onClick={() => setCertificateDraft(null)}
+                disabled={creatingCertificate}
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {certificateMessage && (
+          <p className="mb-4 text-sm text-amber-700">{certificateMessage}</p>
+        )}
+        {certificateState === "loading" && (
+          <p className="text-slate-500">{t("loadingCertificates")}</p>
+        )}
+        {certificateState === "error" && (
+          <p className="text-rose-700">{t("certificatesUnavailable")}</p>
+        )}
+        {certificateState === "ready" && certificates.length === 0 && (
+          <p className="text-slate-500">{t("noCertificates")}</p>
+        )}
+        {certificateState === "ready" && certificates.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {certificates.map((certificate) => (
+              <article
+                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                key={`${certificate.id}-${certificate.revisionNumber}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="mb-1 text-xs font-extrabold tracking-wide text-blue-600 uppercase">
+                      {certificate.certificateNumber}
+                    </p>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {certificate.productName}
+                    </h3>
+                  </div>
+                  <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-bold text-slate-600">
+                    v{certificate.revisionNumber}
+                  </span>
+                </div>
+                <dl className="mt-3 grid gap-1 text-sm text-slate-600">
+                  <div className="flex justify-between gap-3">
+                    <dt>{t("productCategory")}</dt>
+                    <dd>{certificate.productCategoryCode}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt>{t("manufacturer")}</dt>
+                    <dd>{certificate.manufacturer}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt>{t("regulationCode")}</dt>
+                    <dd>{certificate.regulationCode}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
