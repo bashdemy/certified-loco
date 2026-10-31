@@ -6,7 +6,12 @@ import type {
   AssessmentSummaryCounts,
 } from "../domain/assessment-engine";
 import { getLocalizedName } from "../domain/product-category-translations";
-import i18n, { type Locale } from "../i18n/config";
+import i18n, {
+  formatParametersLocalized,
+  localizeAssessmentReason,
+  localizeDomainText,
+  type Locale,
+} from "../i18n/config";
 
 type HealthState = "checking" | "ok" | "error";
 type LoadState = "loading" | "ready" | "error";
@@ -337,9 +342,26 @@ function App() {
 
   const loadAll = async () => {
     fetch("/api/health")
-      .then((response) => {
+      .then(async (response) => {
         if (!response.ok) throw new Error("Health check failed");
         setHealth("ok");
+        try {
+          const healthData = (await response.json()) as {
+            country?: string | null;
+            defaultLocale?: Locale;
+          };
+          const manualChoice = window.localStorage.getItem("cl_locale_manual");
+          if (
+            !manualChoice &&
+            healthData.defaultLocale &&
+            (healthData.defaultLocale === "en" || healthData.defaultLocale === "ru")
+          ) {
+            void i18n.changeLanguage(healthData.defaultLocale);
+            setLocale(healthData.defaultLocale);
+          }
+        } catch {
+          // ignore
+        }
       })
       .catch(() => setHealth("error"));
 
@@ -523,6 +545,11 @@ function App() {
   };
 
   const changeLocale = (nextLocale: Locale) => {
+    try {
+      window.localStorage.setItem("cl_locale_manual", nextLocale);
+    } catch {
+      // ignore
+    }
     void i18n.changeLanguage(nextLocale);
     setLocale(nextLocale);
   };
@@ -1029,10 +1056,7 @@ function App() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-900">{t("manageAccounts")}</h2>
-              <p className="text-xs text-slate-500">
-                Configure your account and your dad&apos;s account (leave password blank
-                to keep current).
-              </p>
+              <p className="text-xs text-slate-500">{t("accountSettingsSubtitle")}</p>
             </div>
             <button
               type="button"
@@ -1061,11 +1085,11 @@ function App() {
                   className="rounded-xl border border-slate-200 bg-slate-50 p-4"
                 >
                   <p className="mb-2 text-xs font-extrabold tracking-wider text-blue-700 uppercase">
-                    {slot === "owner" ? "Account 1 · Owner" : "Account 2 · Dad"}
+                    {slot === "owner" ? t("accountOwnerHeading") : t("accountDadHeading")}
                   </p>
                   <div className="grid gap-2">
                     <label className="text-xs font-semibold text-slate-700">
-                      Name
+                      {t("accountNameLabel")}
                       <input
                         className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal"
                         value={draftAcc.displayName}
@@ -1092,7 +1116,7 @@ function App() {
                       />
                     </label>
                     <label className="text-xs font-semibold text-slate-700">
-                      Role
+                      {t("accountRoleLabel")}
                       <select
                         className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal"
                         value={draftAcc.role}
@@ -1106,12 +1130,12 @@ function App() {
                           }))
                         }
                       >
-                        <option value="admin">admin</option>
-                        <option value="user">user (read-only)</option>
+                        <option value="admin">{t("accountRoleAdmin")}</option>
+                        <option value="user">{t("accountRoleUser")}</option>
                       </select>
                     </label>
                     <label className="text-xs font-semibold text-slate-700">
-                      New password (min 8 chars, optional)
+                      {t("accountNewPasswordLabel")}
                       <input
                         type="password"
                         placeholder="••••••••"
@@ -1141,16 +1165,20 @@ function App() {
         </section>
       )}
 
-      <section className="mb-4 rounded-[22px] bg-slate-900 p-6 text-slate-100 shadow-xl sm:p-12">
+      <section className="mb-4 rounded-[22px] bg-slate-900 p-6 text-slate-100 shadow-xl sm:p-10">
         <p className="mb-2 text-xs font-extrabold tracking-[0.11em] text-slate-400 uppercase">
           {t("firstRelease")}
         </p>
-        <h2 className="mb-4 max-w-3xl text-4xl leading-tight font-bold tracking-[-0.04em] text-white sm:text-6xl">
+        <h2 className="mb-4 max-w-4xl text-3xl leading-tight font-bold tracking-[-0.03em] text-white sm:text-5xl">
           {t("headline")}
         </h2>
-        <p className="mb-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+        <p className="mb-5 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
           {t("intro")}
         </p>
+        <div className="mb-6 rounded-xl border border-slate-700 bg-slate-800/80 p-3.5 text-xs leading-relaxed text-slate-300">
+          <strong className="text-white">{t("legalBasisBannerTitle")}</strong>{" "}
+          {t("legalBasisBannerText")}
+        </div>
         <a
           href="#assessments-section"
           className="inline-block rounded-[10px] bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-500"
@@ -1160,26 +1188,28 @@ function App() {
       </section>
 
       <section className="mb-4 grid gap-4 sm:grid-cols-3" aria-label={t("appName")}>
-        <article className="min-h-44 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <span className="mb-8 block text-xs font-extrabold text-blue-600">01</span>
+        <article className="min-h-40 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <span className="mb-6 block text-xs font-extrabold text-blue-600">01</span>
           <h3 className="mb-2 text-lg font-bold text-slate-900">{t("assessments")}</h3>
-          <p className="leading-relaxed text-slate-500">{t("assessmentsDescription")}</p>
+          <p className="text-sm leading-relaxed text-slate-500">
+            {t("assessmentsDescription")}
+          </p>
         </article>
-        <article className="min-h-44 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <span className="mb-8 block text-xs font-extrabold text-blue-600">02</span>
+        <article className="min-h-40 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <span className="mb-6 block text-xs font-extrabold text-blue-600">02</span>
           <h3 className="mb-2 text-lg font-bold text-slate-900">
             {t("knowledgeCatalogue")}
           </h3>
-          <p className="leading-relaxed text-slate-500">
+          <p className="text-sm leading-relaxed text-slate-500">
             {t("knowledgeCatalogueDescription")}
           </p>
         </article>
-        <article className="min-h-44 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <span className="mb-8 block text-xs font-extrabold text-blue-600">03</span>
+        <article className="min-h-40 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <span className="mb-6 block text-xs font-extrabold text-blue-600">03</span>
           <h3 className="mb-2 text-lg font-bold text-slate-900">
             {t("reviewAndPublish")}
           </h3>
-          <p className="leading-relaxed text-slate-500">
+          <p className="text-sm leading-relaxed text-slate-500">
             {t("reviewAndPublishDescription")}
           </p>
         </article>
@@ -1212,7 +1242,9 @@ function App() {
               <option value="">--</option>
               {certificates.map((cert) => (
                 <option key={cert.revisionId} value={cert.revisionId}>
-                  {cert.certificateNumber} (v{cert.revisionNumber}) — {cert.productName} [
+                  {cert.certificateNumber} ({cert.issuedAt ?? "—"} →{" "}
+                  {cert.expiresAt ?? "—"}) —{" "}
+                  {localizeDomainText(cert.productName, locale)} [
                   {cert.confirmedAt ? t("confirmed") : t("unconfirmed")}]
                 </option>
               ))}
@@ -1230,7 +1262,7 @@ function App() {
           <div className="sm:col-span-3">
             <button
               type="button"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-500 disabled:opacity-50"
               disabled={runningAssessment || !selectedRevisionId || !assessmentDate}
               onClick={() => void handleRunAssessment()}
             >
@@ -1248,110 +1280,263 @@ function App() {
         )}
 
         {assessmentState === "ready" && assessments.length > 0 && (
-          <div className="space-y-4">
-            {assessments.map((assessment) => (
-              <article
-                key={assessment.id}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-extrabold tracking-wide text-blue-600 uppercase">
-                      {assessment.certificateNumber} (v{assessment.revisionNumber}) •{" "}
-                      {assessment.assessmentDate}
-                    </p>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {assessment.productName} ({assessment.productCategoryCode} v
-                      {assessment.productCategoryVersion})
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Dataset: {assessment.regulatoryDatasetCode ?? "None matched"}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-extrabold uppercase ${
-                        assessment.overallStatus === "ready"
-                          ? "bg-emerald-100 text-emerald-900"
-                          : "bg-rose-100 text-rose-900"
-                      }`}
-                    >
-                      {assessment.overallStatus}
-                    </span>
-                    {(
-                      Object.entries(assessment.summaryCounts) as Array<
-                        [AssessmentResultState, number]
+          <div className="space-y-6">
+            {assessments.map((assessment) => {
+              const matchedCategory = categories.find(
+                (c) => c.code === assessment.productCategoryCode,
+              );
+              const localizedCategoryLabel = matchedCategory
+                ? getCategoryName(matchedCategory, locale)
+                : assessment.productCategoryCode;
+              const matchedCert = certificates.find(
+                (c) => c.revisionId === assessment.certificateRevisionId,
+              );
+
+              return (
+                <article
+                  key={assessment.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-extrabold tracking-wide text-blue-600 uppercase">
+                        {assessment.certificateNumber} (v{assessment.revisionNumber}) •{" "}
+                        {t("assessmentDate")}: {assessment.assessmentDate}
+                      </p>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        {localizeDomainText(assessment.productName, locale)} —{" "}
+                        {localizedCategoryLabel}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {matchedCert ? (
+                          <>
+                            {t("manufacturer")}:{" "}
+                            <strong>
+                              {localizeDomainText(matchedCert.manufacturer, locale)}
+                            </strong>{" "}
+                            · {t("certificateValidityLabel")}:{" "}
+                            {matchedCert.issuedAt ?? "—"} → {matchedCert.expiresAt ?? "—"}{" "}
+                            ·{" "}
+                          </>
+                        ) : null}
+                        {t("datasetLabel")}{" "}
+                        {assessment.regulatoryDatasetCode
+                          ? localizeDomainText(assessment.regulatoryDatasetCode, locale)
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-extrabold uppercase ${
+                          assessment.overallStatus === "ready"
+                            ? "bg-emerald-100 text-emerald-900"
+                            : "bg-rose-100 text-rose-900"
+                        }`}
                       >
-                    ).map(([state, count]) =>
-                      count > 0 ? (
-                        <span
-                          key={state}
-                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${resultStateStyles[state]}`}
-                        >
-                          {state}: {count}
-                        </span>
-                      ) : null,
-                    )}
+                        {t(`overall_${assessment.overallStatus}`)}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                  {assessment.results.map((item) => {
-                    const evidenceKey = `${assessment.id}:${item.key}`;
-                    const isExpanded = Boolean(expandedEvidenceKeys[evidenceKey]);
+                  {/* Year-over-Year Action Summary Cards */}
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-extrabold tracking-wide text-slate-600 uppercase">
+                      {t("actionSummaryTitle")}
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3">
+                        <span className="text-2xl font-extrabold text-emerald-900">
+                          {assessment.summaryCounts.required ?? 0}
+                        </span>
+                        <p className="mt-0.5 text-xs font-bold text-emerald-900">
+                          {t("summaryCreditedCard")}
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-emerald-800">
+                          {t("summaryCreditedHint")}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3">
+                        <span className="text-2xl font-extrabold text-amber-900">
+                          {assessment.summaryCounts.changed ?? 0}
+                        </span>
+                        <p className="mt-0.5 text-xs font-bold text-amber-900">
+                          {t("summaryRetestCard")}
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-amber-800">
+                          {t("summaryRetestHint")}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-blue-200 bg-blue-50/90 p-3">
+                        <span className="text-2xl font-extrabold text-blue-900">
+                          {assessment.summaryCounts.additional ?? 0}
+                        </span>
+                        <p className="mt-0.5 text-xs font-bold text-blue-900">
+                          {t("summaryNewTestCard")}
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-blue-800">
+                          {t("summaryNewTestHint")}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3">
+                        <span className="text-2xl font-extrabold text-slate-800">
+                          {(assessment.summaryCounts.review ?? 0) +
+                            (assessment.summaryCounts.historical_only ?? 0)}
+                        </span>
+                        <p className="mt-0.5 text-xs font-bold text-slate-800">
+                          {t("summaryReviewCard")}
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                          {t("summaryReviewHint")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-                    return (
-                      <div key={item.key} className="p-3 text-sm">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <span
-                              className={`mr-2 inline-block rounded px-2 py-0.5 text-xs font-bold uppercase ${resultStateStyles[item.state]}`}
-                            >
-                              {item.state}
-                            </span>
-                            <strong className="text-slate-900">{item.testName}</strong>{" "}
-                            <span className="text-xs text-slate-500">
-                              ({item.testCode})
-                            </span>
+                  <div className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+                    {assessment.results.map((item) => {
+                      const evidenceKey = `${assessment.id}:${item.key}`;
+                      const isExpanded = Boolean(expandedEvidenceKeys[evidenceKey]);
+                      const historicalMatch = matchedCert?.tests.find(
+                        (ht) => ht.testCode === item.testCode,
+                      );
+                      const matchedDataset = datasets.find(
+                        (ds) => ds.id === assessment.regulatoryDatasetId,
+                      );
+                      const currentReqMatch = matchedDataset?.requirements.find(
+                        (r) =>
+                          r.testCode === item.testCode &&
+                          r.productCategoryCode === assessment.productCategoryCode,
+                      );
+
+                      return (
+                        <div key={item.key} className="p-4 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <span
+                                className={`mr-2 inline-block rounded px-2.5 py-0.5 text-xs font-bold ${resultStateStyles[item.state]}`}
+                              >
+                                {t(`state_${item.state}`)}
+                              </span>
+                              <strong className="text-slate-900">
+                                {localizeDomainText(item.testName, locale)}
+                              </strong>{" "}
+                              <span className="text-xs text-slate-500">
+                                ({item.testCode})
+                              </span>
+                            </div>
+                            {item.provenance && (
+                              <button
+                                type="button"
+                                className="text-xs font-bold text-blue-600 hover:underline"
+                                onClick={() => toggleEvidence(evidenceKey)}
+                              >
+                                {t("viewEvidence")} {isExpanded ? "▲" : "▼"}
+                              </button>
+                            )}
                           </div>
-                          {item.provenance && (
-                            <button
-                              type="button"
-                              className="text-xs font-bold text-blue-600 hover:underline"
-                              onClick={() => toggleEvidence(evidenceKey)}
-                            >
-                              {t("viewEvidence")} {isExpanded ? "▲" : "▼"}
-                            </button>
+                          <p className="mt-1.5 text-slate-700">
+                            {localizeAssessmentReason(item.state, item.reason, locale)}
+                          </p>
+
+                          {/* Side-by-side Previous Certificate vs Current Year Requirement */}
+                          <div className="mt-2.5 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs sm:grid-cols-2">
+                            <div>
+                              <span className="font-bold text-slate-600">
+                                {t("previousCertValueLabel")}
+                              </span>{" "}
+                              {historicalMatch ? (
+                                <span className="text-slate-900">
+                                  {historicalMatch.standardCode ?? ""}{" "}
+                                  {localizeDomainText(
+                                    historicalMatch.standardClause,
+                                    locale,
+                                  )}{" "}
+                                  ·{" "}
+                                  <strong>
+                                    {formatParametersLocalized(
+                                      historicalMatch.parameters,
+                                      locale,
+                                    )}
+                                  </strong>
+                                  {historicalMatch.protocolNumber
+                                    ? ` (${t("protocolLabel")} ${historicalMatch.protocolNumber})`
+                                    : ""}
+                                </span>
+                              ) : (
+                                <span className="font-semibold text-rose-700">—</span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-600">
+                                {t("currentYearNormLabel")}
+                              </span>{" "}
+                              {currentReqMatch ? (
+                                <span className="text-slate-900">
+                                  {currentReqMatch.standardCode}{" "}
+                                  {localizeDomainText(
+                                    currentReqMatch.standardClause,
+                                    locale,
+                                  )}{" "}
+                                  ·{" "}
+                                  <strong>
+                                    {formatParametersLocalized(
+                                      currentReqMatch.parameters,
+                                      locale,
+                                    )}
+                                  </strong>
+                                </span>
+                              ) : item.provenance ? (
+                                <span className="text-slate-900">
+                                  {item.provenance.standardCode}{" "}
+                                  {localizeDomainText(
+                                    item.provenance.standardClause,
+                                    locale,
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">—</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {isExpanded && item.provenance && (
+                            <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-xs text-slate-700">
+                              <p className="font-bold text-slate-900">
+                                {localizedCategoryLabel} →{" "}
+                                {item.provenance.regulationCode} (
+                                {item.provenance.regulationVersionLabel}) →{" "}
+                                {localizeDomainText(item.provenance.provision, locale)} →{" "}
+                                {item.provenance.standardCode} (
+                                {item.provenance.standardVersionLabel}) →{" "}
+                                {localizeDomainText(
+                                  item.provenance.standardClause,
+                                  locale,
+                                )}
+                              </p>
+                              <p className="mt-1">
+                                {t("sourceCitationLabel")}{" "}
+                                <strong>
+                                  {localizeDomainText(
+                                    item.provenance.sourceReference,
+                                    locale,
+                                  )}
+                                </strong>{" "}
+                                —{" "}
+                                {localizeDomainText(
+                                  item.provenance.sourcePageSection,
+                                  locale,
+                                )}{" "}
+                                ({t(`reviewStatus_${item.provenance.reviewStatus}`)})
+                              </p>
+                            </div>
                           )}
                         </div>
-                        <p className="mt-1 text-slate-600">{item.reason}</p>
-
-                        {isExpanded && item.provenance && (
-                          <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
-                            <p className="font-bold text-slate-900">
-                              {item.provenance.productCategoryName} (
-                              {item.provenance.productCategoryCode}) →{" "}
-                              {item.provenance.regulationCode} (
-                              {item.provenance.regulationVersionLabel}) →{" "}
-                              {item.provenance.provision} → {item.provenance.standardCode}{" "}
-                              ({item.provenance.standardVersionLabel}) →{" "}
-                              {item.provenance.standardClause} →{" "}
-                              {item.provenance.testCode}
-                            </p>
-                            <p className="mt-1">
-                              Source: <strong>{item.provenance.sourceReference}</strong> —{" "}
-                              {item.provenance.sourcePageSection} (
-                              {item.provenance.extractionMethod},{" "}
-                              {item.provenance.reviewStatus})
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
+                      );
+                    })}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
@@ -1390,11 +1575,11 @@ function App() {
                         {dataset.datasetVersion}
                       </p>
                       <h3 className="text-lg font-bold text-slate-900">
-                        {dataset.title}
+                        {localizeDomainText(dataset.title, locale)}
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Effective: {dataset.effectiveFrom} →{" "}
-                        {dataset.effectiveTo ?? "open"}
+                        {t("effectivePeriodLabel")} {dataset.effectiveFrom} →{" "}
+                        {dataset.effectiveTo ?? t("openEndedLabel")}
                       </p>
                     </div>
                     <span
@@ -1410,65 +1595,82 @@ function App() {
                         ? t("publishedLockedNotice")
                         : dataset.status === "superseded"
                           ? t("supersededNotice")
-                          : dataset.status}
+                          : t("draftNotice")}
                     </span>
                   </div>
 
                   <div className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-                    {dataset.requirements.map((req) => (
-                      <div
-                        key={req.id}
-                        className="flex flex-col justify-between gap-2 p-3 text-sm sm:flex-row sm:items-center"
-                      >
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            [{req.productCategoryCode}] {req.testName} ({req.testCode})
-                          </p>
-                          <p className="text-xs text-slate-600">
-                            {req.regulationCode} ({req.provision}) → {req.standardCode} (
-                            {req.standardVersionLabel}) {req.standardClause}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Evidence: {req.sourceReference} — {req.sourcePageSection}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`rounded px-2 py-0.5 text-xs font-bold uppercase ${
-                              req.reviewStatus === "approved"
-                                ? "bg-emerald-100 text-emerald-900"
-                                : req.reviewStatus === "rejected"
-                                  ? "bg-rose-100 text-rose-900"
-                                  : "bg-amber-100 text-amber-900"
-                            }`}
-                          >
-                            {req.reviewStatus}
-                          </span>
-                          {isAdmin && isMutable && req.reviewStatus !== "approved" && (
-                            <button
-                              type="button"
-                              className="rounded border border-emerald-600 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800"
-                              onClick={() =>
-                                void handleReviewRequirement(req.id, "approved")
-                              }
+                    {dataset.requirements.map((req) => {
+                      const catObj = categories.find(
+                        (c) => c.code === req.productCategoryCode,
+                      );
+                      const catLabel = catObj
+                        ? getCategoryName(catObj, locale)
+                        : req.productCategoryCode;
+
+                      return (
+                        <div
+                          key={req.id}
+                          className="flex flex-col justify-between gap-2 p-3 text-sm sm:flex-row sm:items-center"
+                        >
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              [{catLabel}] {localizeDomainText(req.testName, locale)} (
+                              {req.testCode})
+                            </p>
+                            <p className="text-xs text-slate-600">
+                              {req.regulationCode} (
+                              {localizeDomainText(req.provision, locale)}) →{" "}
+                              {req.standardCode} ({req.standardVersionLabel}){" "}
+                              {localizeDomainText(req.standardClause, locale)} ·{" "}
+                              <strong>
+                                {formatParametersLocalized(req.parameters, locale)}
+                              </strong>
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {t("sourceCitationLabel")}{" "}
+                              {localizeDomainText(req.sourceReference, locale)} —{" "}
+                              {localizeDomainText(req.sourcePageSection, locale)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded px-2 py-0.5 text-xs font-bold uppercase ${
+                                req.reviewStatus === "approved"
+                                  ? "bg-emerald-100 text-emerald-900"
+                                  : req.reviewStatus === "rejected"
+                                    ? "bg-rose-100 text-rose-900"
+                                    : "bg-amber-100 text-amber-900"
+                              }`}
                             >
-                              {t("approveRequirement")}
-                            </button>
-                          )}
-                          {isAdmin && isMutable && req.reviewStatus !== "rejected" && (
-                            <button
-                              type="button"
-                              className="rounded border border-rose-300 bg-white px-2.5 py-1 text-xs font-bold text-rose-700"
-                              onClick={() =>
-                                void handleReviewRequirement(req.id, "rejected")
-                              }
-                            >
-                              {t("rejectRequirement")}
-                            </button>
-                          )}
+                              {t(`reviewStatus_${req.reviewStatus}`)}
+                            </span>
+                            {isAdmin && isMutable && req.reviewStatus !== "approved" && (
+                              <button
+                                type="button"
+                                className="rounded border border-emerald-600 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800"
+                                onClick={() =>
+                                  void handleReviewRequirement(req.id, "approved")
+                                }
+                              >
+                                {t("approveRequirement")}
+                              </button>
+                            )}
+                            {isAdmin && isMutable && req.reviewStatus !== "rejected" && (
+                              <button
+                                type="button"
+                                className="rounded border border-rose-300 bg-white px-2.5 py-1 text-xs font-bold text-rose-700"
+                                onClick={() =>
+                                  void handleReviewRequirement(req.id, "rejected")
+                                }
+                              >
+                                {t("rejectRequirement")}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {isAdmin && isMutable && (
@@ -1563,7 +1765,7 @@ function App() {
                 <option value="">{t("selectCategory")}</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
-                    {getCategoryName(category, "en")}
+                    {getCategoryName(category, locale)}
                   </option>
                 ))}
               </select>
@@ -1603,197 +1805,240 @@ function App() {
         )}
         {certificateState === "ready" && certificates.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
-            {certificates.map((certificate) => (
-              <article
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                key={`${certificate.id}-${certificate.revisionNumber}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="mb-1 text-xs font-extrabold tracking-wide text-blue-600 uppercase">
-                      {certificate.certificateNumber}
-                    </p>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {certificate.productName}
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                        certificate.confirmedAt
-                          ? "bg-emerald-100 text-emerald-900"
-                          : "bg-amber-100 text-amber-900"
-                      }`}
-                    >
-                      {certificate.confirmedAt ? t("confirmed") : t("unconfirmed")}
-                    </span>
-                    <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-bold text-slate-600">
-                      v{certificate.revisionNumber}
-                    </span>
-                  </div>
-                </div>
-                <dl className="mt-3 grid gap-1 text-sm text-slate-600">
-                  <div className="flex justify-between gap-3">
-                    <dt>{t("productCategory")}</dt>
-                    <dd>{certificate.productCategoryCode}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt>{t("manufacturer")}</dt>
-                    <dd>{certificate.manufacturer}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt>{t("regulationCode")}</dt>
-                    <dd>{certificate.regulationCode}</dd>
-                  </div>
-                </dl>
+            {certificates.map((certificate) => {
+              const catObj = categories.find(
+                (c) => c.code === certificate.productCategoryCode,
+              );
+              const catLabel = catObj
+                ? getCategoryName(catObj, locale)
+                : certificate.productCategoryCode;
 
-                <div className="mt-3 border-t border-slate-200 pt-3">
-                  <p className="mb-1 text-xs font-bold text-slate-700 uppercase">
-                    {t("historicalTests")} ({certificate.tests?.length ?? 0})
-                  </p>
-                  {(!certificate.tests || certificate.tests.length === 0) && (
-                    <p className="text-xs text-slate-500">{t("noHistoricalTests")}</p>
-                  )}
-                  {certificate.tests && certificate.tests.length > 0 && (
-                    <ul className="space-y-1 text-xs text-slate-600">
-                      {certificate.tests.map((testItem) => (
-                        <li key={testItem.id}>
-                          • <strong>{testItem.testName}</strong> —{" "}
-                          {testItem.standardCode ?? ""} {testItem.standardClause ?? ""}{" "}
-                          <code>{JSON.stringify(testItem.parameters)}</code>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {addingTestForRevisionId === certificate.revisionId && (
-                  <div className="mt-3 space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs">
-                    <select
-                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
-                      value={revisionTestForm.testId}
-                      onChange={(e) =>
-                        setRevisionTestForm((prev) => ({
-                          ...prev,
-                          testId: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Select test…</option>
-                      {testsCatalogue.map((tc) => (
-                        <option key={tc.id} value={tc.id}>
-                          {tc.name} ({tc.code})
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
-                      value={revisionTestForm.standardVersionId}
-                      onChange={(e) =>
-                        setRevisionTestForm((prev) => ({
-                          ...prev,
-                          standardVersionId: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Select standard version…</option>
-                      {standardVersionOptions.map((sv) => (
-                        <option key={sv.id} value={sv.id}>
-                          {sv.label}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Clause (e.g. Clause 5.2.4)"
-                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
-                      value={revisionTestForm.standardClause}
-                      onChange={(e) =>
-                        setRevisionTestForm((prev) => ({
-                          ...prev,
-                          standardClause: e.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      type="text"
-                      placeholder='Parameters JSON (e.g. {"sensitivityMm2": 2})'
-                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
-                      value={revisionTestForm.parametersText}
-                      onChange={(e) =>
-                        setRevisionTestForm((prev) => ({
-                          ...prev,
-                          parametersText: e.target.value,
-                        }))
-                      }
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white"
-                        onClick={() => void submitRevisionTest(certificate.revisionId)}
+              return (
+                <article
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  key={`${certificate.id}-${certificate.revisionNumber}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="mb-1 text-xs font-extrabold tracking-wide text-blue-600 uppercase">
+                        {certificate.certificateNumber}
+                      </p>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        {localizeDomainText(certificate.productName, locale)}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                          certificate.confirmedAt
+                            ? "bg-emerald-100 text-emerald-900"
+                            : "bg-amber-100 text-amber-900"
+                        }`}
                       >
-                        {t("save")}
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded border border-slate-300 bg-white px-2.5 py-1 font-bold text-slate-700"
-                        onClick={() => setAddingTestForRevisionId(null)}
-                      >
-                        {t("cancel")}
-                      </button>
+                        {certificate.confirmedAt ? t("confirmed") : t("unconfirmed")}
+                      </span>
+                      <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-bold text-slate-600">
+                        v{certificate.revisionNumber}
+                      </span>
                     </div>
                   </div>
-                )}
+                  <dl className="mt-3 grid gap-1 text-sm text-slate-600">
+                    <div className="flex justify-between gap-3">
+                      <dt>{t("productCategory")}</dt>
+                      <dd className="text-right font-medium text-slate-900">
+                        {catLabel}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt>{t("manufacturer")}</dt>
+                      <dd className="text-right">
+                        {localizeDomainText(certificate.manufacturer, locale)}
+                      </dd>
+                    </div>
+                    {certificate.applicant && (
+                      <div className="flex justify-between gap-3">
+                        <dt>{t("applicant")}</dt>
+                        <dd className="text-right">
+                          {localizeDomainText(certificate.applicant, locale)}
+                        </dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-3">
+                      <dt>{t("regulationCode")}</dt>
+                      <dd className="text-right">
+                        {certificate.regulationCode}
+                        {certificate.certificationScheme
+                          ? ` (${t("certificationSchemeShort")} ${certificate.certificationScheme})`
+                          : ""}
+                      </dd>
+                    </div>
+                    {(certificate.issuedAt || certificate.expiresAt) && (
+                      <div className="flex justify-between gap-3">
+                        <dt>{t("certificateValidityLabel")}</dt>
+                        <dd className="text-right">
+                          {certificate.issuedAt ?? "—"} → {certificate.expiresAt ?? "—"}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
 
-                {isAdmin && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {!certificate.confirmedAt && (
+                  <div className="mt-3 border-t border-slate-200 pt-3">
+                    <p className="mb-1.5 text-xs font-bold text-slate-700 uppercase">
+                      {t("historicalTests")} ({certificate.tests?.length ?? 0})
+                    </p>
+                    {(!certificate.tests || certificate.tests.length === 0) && (
+                      <p className="text-xs text-slate-500">{t("noHistoricalTests")}</p>
+                    )}
+                    {certificate.tests && certificate.tests.length > 0 && (
+                      <ul className="space-y-1.5 text-xs text-slate-600">
+                        {certificate.tests.map((testItem) => (
+                          <li key={testItem.id}>
+                            •{" "}
+                            <strong className="text-slate-900">
+                              {localizeDomainText(testItem.testName, locale)}
+                            </strong>{" "}
+                            — {testItem.standardCode ?? ""}{" "}
+                            {localizeDomainText(testItem.standardClause, locale)} ·{" "}
+                            <span className="font-semibold text-slate-800">
+                              {formatParametersLocalized(testItem.parameters, locale)}
+                            </span>
+                            {testItem.protocolNumber
+                              ? ` (${t("protocolLabel")} ${testItem.protocolNumber})`
+                              : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {addingTestForRevisionId === certificate.revisionId && (
+                    <div className="mt-3 space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs">
+                      <select
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
+                        value={revisionTestForm.testId}
+                        onChange={(e) =>
+                          setRevisionTestForm((prev) => ({
+                            ...prev,
+                            testId: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">{t("selectTestPlaceholder")}</option>
+                        {testsCatalogue.map((tc) => (
+                          <option key={tc.id} value={tc.id}>
+                            {localizeDomainText(tc.name, locale)} ({tc.code})
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
+                        value={revisionTestForm.standardVersionId}
+                        onChange={(e) =>
+                          setRevisionTestForm((prev) => ({
+                            ...prev,
+                            standardVersionId: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">{t("selectStandardPlaceholder")}</option>
+                        {standardVersionOptions.map((sv) => (
+                          <option key={sv.id} value={sv.id}>
+                            {sv.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        placeholder={t("standardClausePlaceholder")}
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
+                        value={revisionTestForm.standardClause}
+                        onChange={(e) =>
+                          setRevisionTestForm((prev) => ({
+                            ...prev,
+                            standardClause: e.target.value,
+                          }))
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder={t("parametersJsonPlaceholder")}
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5"
+                        value={revisionTestForm.parametersText}
+                        onChange={(e) =>
+                          setRevisionTestForm((prev) => ({
+                            ...prev,
+                            parametersText: e.target.value,
+                          }))
+                        }
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="rounded bg-blue-600 px-2.5 py-1 font-bold text-white"
+                          onClick={() => void submitRevisionTest(certificate.revisionId)}
+                        >
+                          {t("save")}
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded border border-slate-300 bg-white px-2.5 py-1 font-bold text-slate-700"
+                          onClick={() => setAddingTestForRevisionId(null)}
+                        >
+                          {t("cancel")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {!certificate.confirmedAt && (
+                        <button
+                          type="button"
+                          className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"
+                          onClick={() => void confirmRevision(certificate.revisionId)}
+                        >
+                          {t("confirmRevision")}
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"
-                        onClick={() => void confirmRevision(certificate.revisionId)}
-                      >
-                        {t("confirmRevision")}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700"
-                      onClick={() => {
-                        setAddingTestForRevisionId(certificate.revisionId);
-                        setRevisionTestForm({
-                          testId: testsCatalogue[0]?.id ?? "",
-                          standardVersionId: standardVersionOptions[0]?.id ?? "",
-                          standardClause: "Clause 5.2.4",
-                          parametersText: "{}",
-                          protocolNumber: "",
-                          sourcePageSection: "",
-                        });
-                      }}
-                    >
-                      {t("addHistoricalTest")}
-                    </button>
-                    <label className="inline-flex cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">
-                      {uploadingRevisionId === certificate.revisionId
-                        ? t("uploadingDocument")
-                        : t("uploadDocument")}
-                      <input
-                        className="sr-only"
-                        type="file"
-                        accept="application/pdf"
-                        disabled={uploadingRevisionId !== null}
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) void uploadCertificateDocument(certificate, file);
-                          event.target.value = "";
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                        onClick={() => {
+                          setAddingTestForRevisionId(certificate.revisionId);
+                          setRevisionTestForm({
+                            testId: testsCatalogue[0]?.id ?? "",
+                            standardVersionId: standardVersionOptions[0]?.id ?? "",
+                            standardClause: "Clause 5.2.4",
+                            parametersText: "{}",
+                            protocolNumber: "",
+                            sourcePageSection: "",
+                          });
                         }}
-                      />
-                    </label>
-                  </div>
-                )}
-              </article>
-            ))}
+                      >
+                        {t("addHistoricalTest")}
+                      </button>
+                      <label className="inline-flex cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+                        {uploadingRevisionId === certificate.revisionId
+                          ? t("uploadingDocument")
+                          : t("uploadDocument")}
+                        <input
+                          className="sr-only"
+                          type="file"
+                          accept="application/pdf"
+                          disabled={uploadingRevisionId !== null}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) void uploadCertificateDocument(certificate, file);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
@@ -1998,11 +2243,6 @@ function App() {
                         <h3 className="mb-1 text-lg font-bold text-slate-900">
                           {getCategoryName(category, locale)}
                         </h3>
-                        {locale !== "en" && (
-                          <p className="text-sm text-slate-500">
-                            {getCategoryName(category, "en")}
-                          </p>
-                        )}
                       </div>
                       {isAdmin && (
                         <button
@@ -2014,11 +2254,11 @@ function App() {
                         </button>
                       )}
                     </div>
-                    {category.translations.find((item) => item.locale === "en")
+                    {category.translations.find((item) => item.locale === locale)
                       ?.description && (
                       <p className="mt-3 text-sm leading-relaxed text-slate-500">
                         {
-                          category.translations.find((item) => item.locale === "en")
+                          category.translations.find((item) => item.locale === locale)
                             ?.description
                         }
                       </p>
@@ -2051,7 +2291,7 @@ function App() {
                 setNewTestDraft({ code: "", name: "", method: "", unit: "" })
               }
             >
-              + Test
+              {t("addTestButton")}
             </button>
           )}
         </div>
@@ -2060,7 +2300,7 @@ function App() {
           <div className="mb-4 grid gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-4">
             <input
               type="text"
-              placeholder="Code (e.g. brake_disc_wear)"
+              placeholder={t("testCodePlaceholder")}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
               value={newTestDraft.code}
               onChange={(e) =>
@@ -2071,7 +2311,7 @@ function App() {
             />
             <input
               type="text"
-              placeholder="Name"
+              placeholder={t("testNamePlaceholder")}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
               value={newTestDraft.name}
               onChange={(e) =>
@@ -2082,7 +2322,7 @@ function App() {
             />
             <input
               type="text"
-              placeholder="Method"
+              placeholder={t("testMethodPlaceholder")}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
               value={newTestDraft.method}
               onChange={(e) =>
@@ -2113,37 +2353,41 @@ function App() {
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <h3 className="mb-2 text-sm font-bold text-slate-900">
-              Regulations ({regulations.length})
+              {t("regulationsHeading")} ({regulations.length})
             </h3>
             <ul className="space-y-2 text-xs text-slate-600">
               {regulations.map((reg) => (
                 <li key={reg.id}>
-                  <strong className="text-slate-900">{reg.code}</strong> — {reg.name}
+                  <strong className="text-slate-900">{reg.code}</strong> —{" "}
+                  {localizeDomainText(reg.name, locale)}
                 </li>
               ))}
             </ul>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <h3 className="mb-2 text-sm font-bold text-slate-900">
-              Standards ({standards.length})
+              {t("standardsHeading")} ({standards.length})
             </h3>
             <ul className="space-y-2 text-xs text-slate-600">
               {standards.map((std) => (
                 <li key={std.id}>
-                  <strong className="text-slate-900">{std.code}</strong> — {std.name}
+                  <strong className="text-slate-900">{std.code}</strong> —{" "}
+                  {localizeDomainText(std.name, locale)}
                 </li>
               ))}
             </ul>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <h3 className="mb-2 text-sm font-bold text-slate-900">
-              Tests ({testsCatalogue.length})
+              {t("testsHeading")} ({testsCatalogue.length})
             </h3>
             <ul className="space-y-2 text-xs text-slate-600">
               {testsCatalogue.map((testItem) => (
                 <li key={testItem.id}>
-                  <strong className="text-slate-900">{testItem.name}</strong> (
-                  {testItem.code})
+                  <strong className="text-slate-900">
+                    {localizeDomainText(testItem.name, locale)}
+                  </strong>{" "}
+                  ({testItem.code})
                 </li>
               ))}
             </ul>

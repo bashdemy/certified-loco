@@ -90,14 +90,32 @@ function getRequestId(request: Request) {
   return request.headers.get("X-Request-ID") ?? crypto.randomUUID();
 }
 
+const RUSSIAN_DEFAULT_COUNTRIES = new Set(["KZ", "RU", "BY", "KG", "UZ", "TJ", "AM"]);
+
+function detectCountryAndLocale(request: Request): {
+  country: string | null;
+  defaultLocale: "en" | "ru";
+} {
+  const cfCountry =
+    request.headers.get("CF-IPCountry") ??
+    (request as Request & { cf?: { country?: string } }).cf?.country ??
+    null;
+  const country = cfCountry ? cfCountry.trim().toUpperCase() : null;
+  const defaultLocale = country && RUSSIAN_DEFAULT_COUNTRIES.has(country) ? "ru" : "en";
+  return { country, defaultLocale };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/health") {
+      const { country, defaultLocale } = detectCountryAndLocale(request);
       return Response.json({
         status: "ok",
         service: "certified-loco-api",
+        country,
+        defaultLocale,
       });
     }
 
