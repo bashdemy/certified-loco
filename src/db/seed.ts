@@ -381,7 +381,7 @@ export async function seedDatabase(connectionString: string) {
           email: (process.env.INITIAL_OWNER_EMAIL ?? "bashdemy@gmail.com").toLowerCase(),
           displayName: "Maria",
           role: "admin",
-          password: process.env.INITIAL_OWNER_PASSWORD ?? "CertifiedLoco2026!",
+          password: process.env.INITIAL_OWNER_PASSWORD,
         },
         {
           slot: "dad",
@@ -390,7 +390,7 @@ export async function seedDatabase(connectionString: string) {
           ).toLowerCase(),
           displayName: "Dad",
           role: "admin",
-          password: process.env.INITIAL_DAD_PASSWORD ?? "DadLoco2026!",
+          password: process.env.INITIAL_DAD_PASSWORD,
         },
       ];
 
@@ -400,7 +400,7 @@ export async function seedDatabase(connectionString: string) {
           .from(appUsers)
           .where(eq(appUsers.slot, acc.slot));
 
-        if (existingUser.length === 0) {
+        if (existingUser.length === 0 && acc.password) {
           const passwordHash = await hashPassword(acc.password);
           await tx.insert(appUsers).values({
             slot: acc.slot,
