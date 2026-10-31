@@ -423,6 +423,264 @@ export async function seedDatabase(connectionString: string) {
 }
 
 export async function prepareProductionDemoData(connectionString: string) {
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const db = drizzle(client);
+
+    // 1. Ensure КазЦСЖТ additional categories (brake_disc, rail_r65) exist with EN/RU/KK translations
+    const extraCategories = [
+      {
+        code: "brake_disc",
+        translations: {
+          en: "Rolling stock brake discs",
+          ru: "Диски тормозные подвижного состава",
+          kk: "Жылжымалы құрамның тежегіш дискілері",
+        },
+        descriptions: {
+          en: "Brake discs for passenger and high-speed railway rolling stock under ТР ТС 001/2011 and ГОСТ 34434-2018.",
+          ru: "Диски тормозные железнодорожного подвижного состава по ТР ТС 001/2011 и ГОСТ 34434-2018 (испытательный стенд ИЦ КазЦСЖТ).",
+          kk: "КО ТР 001/2011 және МЕМСТ 34434-2018 бойынша теміржол жылжымалы құрамының тежегіш дискілері.",
+        },
+      },
+      {
+        code: "rail_r65",
+        translations: {
+          en: "Broad-gauge railway rails (R65)",
+          ru: "Рельсы железнодорожные широкой колеи (Р65)",
+          kk: "Кең табанды теміржол рельстері (Р65)",
+        },
+        descriptions: {
+          en: "Mainline railway rails subject to mandatory certification under ТР ТС 003/2011 (On Safety of Railway Transport Infrastructure) and ГОСТ Р 51685-2013.",
+          ru: "Рельсы железнодорожные для звеньевого и бесстыкового пути, подлежащие обязательной сертификации по ТР ТС 003/2011 и ГОСТ Р 51685-2013.",
+          kk: "КО ТР 003/2011 және МЕМСТ Р 51685-2013 бойынша міндетті сертификаттауға жататын теміржол рельстері.",
+        },
+      },
+    ];
+
+    for (const extraCat of extraCategories) {
+      await db
+        .insert(productCategories)
+        .values({ code: extraCat.code })
+        .onConflictDoNothing({ target: productCategories.code });
+
+      const [catRow] = await db
+        .select()
+        .from(productCategories)
+        .where(eq(productCategories.code, extraCat.code));
+
+      if (catRow) {
+        for (const [locale, name] of Object.entries(extraCat.translations)) {
+          const description =
+            extraCat.descriptions[locale as keyof typeof extraCat.descriptions] ?? null;
+          await db
+            .insert(productCategoryTranslations)
+            .values({
+              productCategoryId: catRow.id,
+              locale,
+              name,
+              description,
+            })
+            .onConflictDoUpdate({
+              target: [
+                productCategoryTranslations.productCategoryId,
+                productCategoryTranslations.locale,
+              ],
+              set: { name, description },
+            });
+        }
+      }
+    }
+
+    // 2. Ensure ТР ТС 002/2011 and ТР ТС 003/2011 exist (КазЦСЖТ accreditation scope)
+    const extraRegulations = [
+      {
+        code: "ТР ТС 002/2011",
+        name: "On Safety of High-Speed Railway Transport (О безопасности высокоскоростного железнодорожного транспорта)",
+      },
+      {
+        code: "ТР ТС 003/2011",
+        name: "On Safety of Railway Transport Infrastructure (О безопасности инфраструктуры железнодорожного транспорта)",
+      },
+    ];
+
+    for (const reg of extraRegulations) {
+      await db
+        .insert(regulations)
+        .values(reg)
+        .onConflictDoNothing({ target: regulations.code });
+      const [regRow] = await db
+        .select()
+        .from(regulations)
+        .where(eq(regulations.code, reg.code));
+      if (regRow) {
+        await db
+          .insert(regulationVersions)
+          .values({
+            regulationId: regRow.id,
+            versionLabel: "Decision No. 710 (2011-07-15)",
+            effectiveFrom: "2014-08-02",
+            effectiveTo: null,
+          })
+          .onConflictDoNothing();
+      }
+    }
+
+    // 3. Ensure ГОСТ 34434-2018 (Brake Discs) & ГОСТ Р 51685-2013 (Rails) and Brake Disc tests exist
+    const extraStandards = [
+      {
+        code: "ГОСТ 34434-2018",
+        name: "Brake discs for railway rolling stock. Specifications",
+        versionLabel: "2018",
+        effectiveFrom: "2019-03-01",
+      },
+      {
+        code: "ГОСТ Р 51685-2013",
+        name: "Railway rails. General specifications",
+        versionLabel: "2013",
+        effectiveFrom: "2014-07-01",
+      },
+    ];
+
+    for (const std of extraStandards) {
+      await db
+        .insert(standards)
+        .values({ code: std.code, name: std.name })
+        .onConflictDoNothing({ target: standards.code });
+      const [stdRow] = await db
+        .select()
+        .from(standards)
+        .where(eq(standards.code, std.code));
+      if (stdRow) {
+        await db
+          .insert(standardVersions)
+          .values({
+            standardId: stdRow.id,
+            versionLabel: std.versionLabel,
+            effectiveFrom: std.effectiveFrom,
+            effectiveTo: null,
+          })
+          .onConflictDoNothing();
+      }
+    }
+
+    await db
+      .insert(tests)
+      .values([
+        {
+          code: "brake_disc_thermal_fatigue",
+          name: "Brake disc thermal fatigue bench test",
+          method: "Inertia dynamometer bench test",
+          unit: "cycles",
+          defaultParametersJson: { minCycles: 750, maxCrackLengthMm: 35 },
+        },
+        {
+          code: "brake_disc_friction_hardness",
+          name: "Brake disc friction ring Brinell hardness check",
+          method: "Brinell hardness HB",
+          unit: "HB",
+          defaultParametersJson: { minHB: 200, maxHB: 250 },
+        },
+      ])
+      .onConflictDoNothing({ target: tests.code });
+
+    // 4. Add brake_disc requirements to the baseline dataset if not already present
+    const [baselineDs] = await db
+      .select()
+      .from(regulatoryDatasets)
+      .where(eq(regulatoryDatasets.code, "tr-ts-001-2011-wheelsets-v1"));
+    const [brakeCat] = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.code, "brake_disc"));
+    const [gost34434] = await db
+      .select()
+      .from(standards)
+      .where(eq(standards.code, "ГОСТ 34434-2018"));
+    const [gost34434Ver] = gost34434
+      ? await db
+          .select()
+          .from(standardVersions)
+          .where(eq(standardVersions.standardId, gost34434.id))
+      : [];
+    const [trTs001] = await db
+      .select()
+      .from(regulations)
+      .where(eq(regulations.code, "ТР ТС 001/2011"));
+    const [trTs001Ver] = trTs001
+      ? await db
+          .select()
+          .from(regulationVersions)
+          .where(eq(regulationVersions.regulationId, trTs001.id))
+      : [];
+    const [thermalTest] = await db
+      .select()
+      .from(tests)
+      .where(eq(tests.code, "brake_disc_thermal_fatigue"));
+    const [frictionHardnessTest] = await db
+      .select()
+      .from(tests)
+      .where(eq(tests.code, "brake_disc_friction_hardness"));
+
+    if (
+      baselineDs &&
+      brakeCat &&
+      gost34434Ver &&
+      trTs001Ver &&
+      thermalTest &&
+      frictionHardnessTest
+    ) {
+      const existingBrakeReqs = await db
+        .select()
+        .from(requirements)
+        .where(
+          and(
+            eq(requirements.datasetId, baselineDs.id),
+            eq(requirements.productCategoryId, brakeCat.id),
+          ),
+        );
+
+      if (existingBrakeReqs.length === 0) {
+        await db.insert(requirements).values([
+          {
+            datasetId: baselineDs.id,
+            productCategoryId: brakeCat.id,
+            regulationVersionId: trTs001Ver.id,
+            provision: "Article 4, Section 12; Annex 1, item 18",
+            standardVersionId: gost34434Ver.id,
+            standardClause: "Clause 5.1.4",
+            testId: frictionHardnessTest.id,
+            parametersJson: { minHB: 200, maxHB: 250 },
+            effectiveFrom: "2020-01-01",
+            effectiveTo: null,
+            sourceReference: "ТР ТС 001/2011 & ГОСТ 34434-2018 Official Register",
+            sourcePageSection: "ГОСТ 34434-2018 Section 5.1.4, p. 5",
+            extractionMethod: "manual",
+            reviewStatus: "approved",
+          },
+          {
+            datasetId: baselineDs.id,
+            productCategoryId: brakeCat.id,
+            regulationVersionId: trTs001Ver.id,
+            provision: "Article 4, Section 12; Annex 1, item 18",
+            standardVersionId: gost34434Ver.id,
+            standardClause: "Clause 5.2.3",
+            testId: thermalTest.id,
+            parametersJson: { minCycles: 750, maxCrackLengthMm: 35 },
+            effectiveFrom: "2020-01-01",
+            effectiveTo: null,
+            sourceReference: "ТР ТС 001/2011 & ГОСТ 34434-2018 Official Register",
+            sourcePageSection: "ГОСТ 34434-2018 Section 5.2.3, p. 7",
+            extractionMethod: "manual",
+            reviewStatus: "approved",
+          },
+        ]);
+      }
+    }
+  } finally {
+    await client.end();
+  }
+
   const datasets = await listRegulatoryDatasets(connectionString, {
     includeNonPublished: true,
   });
@@ -450,10 +708,10 @@ export async function prepareProductionDemoData(connectionString: string) {
   const certs = await listCertificates(connectionString);
   const wagonCertNo = "ЕАЭС KZ.7100001.21.01.00204";
   if (!certs.some((c) => c.certificateNumber === wagonCertNo)) {
-    const client = new Client({ connectionString });
-    await client.connect();
+    const client2 = new Client({ connectionString });
+    await client2.connect();
     try {
-      const db = drizzle(client);
+      const db = drizzle(client2);
       const [wagonCat] = await db
         .select()
         .from(productCategories)
@@ -508,14 +766,98 @@ export async function prepareProductionDemoData(connectionString: string) {
         });
       }
     } finally {
-      await client.end();
+      await client2.end();
+    }
+  }
+
+  // 5. Seed 3rd Kazakhstan certificate: Brake Disc TD-640 (ЕАЭС KZ.7500001.01.01.00315)
+  const brakeCertNo = "ЕАЭС KZ.7500001.01.01.00315";
+  const updatedCerts = await listCertificates(connectionString);
+  if (!updatedCerts.some((c) => c.certificateNumber === brakeCertNo)) {
+    const client3 = new Client({ connectionString });
+    await client3.connect();
+    try {
+      const db = drizzle(client3);
+      const [brakeCat] = await db
+        .select()
+        .from(productCategories)
+        .where(eq(productCategories.code, "brake_disc"));
+      const [gost34434] = await db
+        .select()
+        .from(standards)
+        .where(eq(standards.code, "ГОСТ 34434-2018"));
+      const [gost34434Ver] = gost34434
+        ? await db
+            .select()
+            .from(standardVersions)
+            .where(eq(standardVersions.standardId, gost34434.id))
+        : [];
+      const [thermalTest] = await db
+        .select()
+        .from(tests)
+        .where(eq(tests.code, "brake_disc_thermal_fatigue"));
+      const [frictionHardnessTest] = await db
+        .select()
+        .from(tests)
+        .where(eq(tests.code, "brake_disc_friction_hardness"));
+
+      if (brakeCat && gost34434Ver && thermalTest && frictionHardnessTest) {
+        const createdBrakeCert = await createCertificate(connectionString, {
+          certificateNumber: brakeCertNo,
+          productCategoryId: brakeCat.id,
+          productName: "Passenger Coach Brake Disc TD-640",
+          productModel: "ТД-640",
+          manufacturer: "KazVagonDetal LLP",
+          applicant: "KazVagonDetal LLP",
+          regulationCode: "ТР ТС 001/2011",
+          certificationScheme: "3c",
+          issuedAt: "2023-09-01",
+          expiresAt: "2028-08-31",
+          confirmed: true,
+          actorEmail: "bashdemy@gmail.com",
+          requestId: "seed-brake-cert",
+        });
+
+        await addTestToCertificateRevision(connectionString, {
+          certificateRevisionId: createdBrakeCert.revision.id,
+          testId: frictionHardnessTest.id,
+          standardVersionId: gost34434Ver.id,
+          standardClause: "Clause 5.1.4",
+          parameters: { minHB: 200, maxHB: 250 },
+          protocolNumber: "ИЦ-ЭКБ-2023-112",
+          sourcePageSection: "Protocol ИЦ-ЭКБ-2023-112, p. 3",
+          actorEmail: "bashdemy@gmail.com",
+          requestId: "seed-brake-test-1",
+        });
+
+        await addTestToCertificateRevision(connectionString, {
+          certificateRevisionId: createdBrakeCert.revision.id,
+          testId: thermalTest.id,
+          standardVersionId: gost34434Ver.id,
+          standardClause: "Clause 5.2.3",
+          parameters: { minCycles: 600, maxCrackLengthMm: 35 },
+          protocolNumber: "ИЦ-ЭКБ-2023-112",
+          sourcePageSection: "Protocol ИЦ-ЭКБ-2023-112, p. 5",
+          actorEmail: "bashdemy@gmail.com",
+          requestId: "seed-brake-test-2",
+        });
+
+        await runAssessment(connectionString, {
+          certificateRevisionId: createdBrakeCert.revision.id,
+          assessmentDate: "2026-10-31",
+          actorEmail: "bashdemy@gmail.com",
+          requestId: "seed-assessment-brake",
+        });
+      }
+    } finally {
+      await client3.end();
     }
   }
 
   const existingAssessments = await listAssessments(connectionString);
-  if (existingAssessments.length === 0) {
-    const allCerts = await listCertificates(connectionString);
-    for (const cert of allCerts) {
+  const allCerts = await listCertificates(connectionString);
+  for (const cert of allCerts) {
+    if (!existingAssessments.some((a) => a.certificateRevisionId === cert.revisionId)) {
       await runAssessment(connectionString, {
         certificateRevisionId: cert.revisionId,
         assessmentDate: "2026-10-31",

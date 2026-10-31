@@ -15,6 +15,7 @@ import type {
   ProductCategory,
   RegulatoryDataset,
 } from "../types";
+import { KazcszhtReportModal } from "./KazcszhtReportModal";
 
 const resultStateStyles: Record<AssessmentResultState, string> = {
   required: "bg-emerald-100 text-emerald-900 border border-emerald-200",
@@ -59,6 +60,7 @@ export function YearlyCheckTab({
   const [expandedEvidenceKeys, setExpandedEvidenceKeys] = useState<
     Record<string, boolean>
   >({});
+  const [reportAssessment, setReportAssessment] = useState<AssessmentRecord | null>(null);
 
   const toggleEvidence = (key: string) => {
     setExpandedEvidenceKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -193,15 +195,28 @@ export function YearlyCheckTab({
                     ) : null}
                   </p>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-extrabold uppercase ${
-                    assessment.overallStatus === "ready"
-                      ? "bg-emerald-100 text-emerald-900"
-                      : "bg-rose-100 text-rose-900"
-                  }`}
-                >
-                  {t(`overall_${assessment.overallStatus}`)}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReportAssessment(assessment)}
+                    className="rounded-lg border border-[#0284c7] bg-white px-3 py-1.5 text-xs font-bold text-[#0c4a6e] shadow-2xs transition hover:bg-[#e0f2fe]"
+                  >
+                    {locale === "ru"
+                      ? "📄 Заключение ОПС КазЦСЖТ и направление в ИЦ (Печать / PDF)"
+                      : locale === "kk"
+                        ? "📄 ҚазТЖСО қорытындысы және СЗ жолдамасы (Басып шығару / PDF)"
+                        : "📄 KazCSZhT Conclusion & Testing Center Direction (Print / PDF)"}
+                  </button>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-extrabold uppercase ${
+                      assessment.overallStatus === "ready"
+                        ? "bg-emerald-100 text-emerald-900"
+                        : "bg-rose-100 text-rose-900"
+                    }`}
+                  >
+                    {t(`overall_${assessment.overallStatus}`)}
+                  </span>
+                </div>
               </div>
 
               {/* 4-Card Summary */}
@@ -401,6 +416,25 @@ export function YearlyCheckTab({
             </article>
           );
         })}
+
+      {reportAssessment && (
+        <KazcszhtReportModal
+          locale={locale}
+          assessment={reportAssessment}
+          certificate={certificates.find(
+            (c) => c.revisionId === reportAssessment.certificateRevisionId,
+          )}
+          dataset={datasets.find((ds) => ds.id === reportAssessment.regulatoryDatasetId)}
+          categoryLabel={
+            getLocalizedName(
+              categories.find((c) => c.code === reportAssessment.productCategoryCode)
+                ?.translations ?? [],
+              locale,
+            ) ?? reportAssessment.productCategoryCode
+          }
+          onClose={() => setReportAssessment(null)}
+        />
+      )}
     </section>
   );
 }
