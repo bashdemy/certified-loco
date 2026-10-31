@@ -14,4 +14,10 @@
       "bucket_name": "certified-loco-documents",
     },
   ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "bc79c6edc9804c258dadc95b6eb6e506",
+    },
+  ],
 }

@@ -80,7 +80,7 @@ const isMain =
   process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename);
 
 if (isMain) {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
   if (!connectionString) {
     console.error("DATABASE_URL is required to run migrations");
     process.exit(1);
