@@ -61,6 +61,58 @@ export function YearlyCheckTab({
     Record<string, boolean>
   >({});
   const [reportAssessment, setReportAssessment] = useState<AssessmentRecord | null>(null);
+  const [certSearch, setCertSearch] = useState("");
+  const [issueYearFilter, setIssueYearFilter] = useState<string>("");
+
+  const L = (ru: string, en: string, kk: string) =>
+    locale === "ru" ? ru : locale === "kk" ? kk : en;
+
+  const issueYears = Array.from(
+    new Set(
+      certificates
+        .map((c) => c.issuedAt?.slice(0, 4))
+        .filter((y): y is string => Boolean(y)),
+    ),
+  ).sort((a, b) => b.localeCompare(a));
+
+  const searchLower = certSearch.trim().toLowerCase();
+  const visibleCertificates = certificates.filter((c) => {
+    if (issueYearFilter && c.issuedAt?.slice(0, 4) !== issueYearFilter) return false;
+    if (!searchLower) return true;
+    const categoryName =
+      getLocalizedName(
+        categories.find((cat) => cat.code === c.productCategoryCode)?.translations ?? [],
+        locale,
+      ) ?? "";
+    return [
+      c.certificateNumber,
+      c.productName,
+      localizeDomainText(c.productName, locale),
+      c.productModel ?? "",
+      c.manufacturer,
+      localizeDomainText(c.manufacturer, locale),
+      categoryName,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(searchLower);
+  });
+
+  const selectedCert = certificates.find((c) => c.revisionId === selectedRevisionId);
+  const targetYear = assessmentDate.slice(0, 4);
+  const currentYear = new Date().getFullYear();
+  const targetYearOptions = [currentYear - 1, currentYear, currentYear + 1];
+
+  const setTargetYear = (year: number) => {
+    const monthDay = assessmentDate.length === 10 ? assessmentDate.slice(5) : "06-01";
+    onChangeAssessmentDate(`${year}-${monthDay}`);
+  };
+
+  const stepBadge = (n: number) => (
+    <span className="mr-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#0284c7] px-2 text-[11px] font-bold text-[#fef08a] uppercase">
+      {L(`Шаг ${n}`, `Step ${n}`, `${n}-қадам`)}
+    </span>
+  );
 
   const toggleEvidence = (key: string) => {
     setExpandedEvidenceKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -85,53 +137,191 @@ export function YearlyCheckTab({
         <p className="mt-1 text-sm text-slate-600">{t("assessmentsDescription")}</p>
       </div>
 
-      {/* Step 1, Step 2 & Step 3 Selector Bar */}
-      <div className="mb-6 grid gap-4 rounded-xl border border-[#bae6fd] bg-gradient-to-r from-[#f0f9ff] via-[#f5fbff] to-[#fffdf5] p-4 sm:grid-cols-12 sm:items-end">
-        <label className="block text-sm font-semibold text-[#0c4a6e] sm:col-span-6">
-          <span className="mr-1.5 inline-block rounded bg-[#0284c7] px-2 py-0.5 text-[11px] font-bold text-[#fef08a] uppercase">
-            {locale === "ru" ? "Шаг 1" : locale === "kk" ? "1-қадам" : "Step 1"}
+      {/* STEP 1 — full-width searchable certificate picker with previous-year filter */}
+      <div className="mb-4 rounded-xl border border-[#bae6fd] bg-gradient-to-r from-[#f0f9ff] via-[#f5fbff] to-[#fffdf5] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center text-base font-bold text-[#0c4a6e]">
+            {stepBadge(1)}
+            {L(
+              "Выберите год и сертификат прошлого периода",
+              "Choose the previous year and certificate",
+              "Алдыңғы жылды және сертификатты таңдаңыз",
+            )}
+          </h3>
+          <span className="text-xs text-slate-500">
+            {L("Найдено", "Found", "Табылды")}: {visibleCertificates.length} /{" "}
+            {certificates.length}
           </span>
-          {t("selectCertificateRevision")}
-          <select
-            className="mt-1.5 w-full rounded-lg border border-[#93c5fd] bg-white px-3 py-2.5 text-sm font-normal text-slate-900 shadow-2xs focus:border-[#0284c7] focus:outline-none"
-            value={selectedRevisionId}
-            onChange={(event) => onSelectRevisionId(event.target.value)}
-          >
-            <option value="">--</option>
-            {certificates.map((cert) => (
-              <option key={cert.revisionId} value={cert.revisionId}>
-                {cert.certificateNumber} ({cert.issuedAt ?? "—"} → {cert.expiresAt ?? "—"}
-                ) — {localizeDomainText(cert.productName, locale)}
-              </option>
+        </div>
+
+        {/* Previous year chips */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-slate-600">
+            {L("Год выдачи сертификата:", "Certificate issue year:", "Берілген жылы:")}
+          </span>
+          {["", ...issueYears].map((year) => (
+            <button
+              key={year || "all"}
+              type="button"
+              onClick={() => setIssueYearFilter(year)}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
+                issueYearFilter === year
+                  ? "bg-[#0284c7] text-white shadow-xs"
+                  : "border border-[#bae6fd] bg-white text-[#0c4a6e] hover:bg-[#e0f2fe]"
+              }`}
+            >
+              {year || L("Все годы", "All years", "Барлық жылдар")}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <input
+          type="search"
+          value={certSearch}
+          onChange={(e) => setCertSearch(e.target.value)}
+          placeholder={L(
+            "🔍 Поиск: номер сертификата, продукция, модель, изготовитель…",
+            "🔍 Search: certificate number, product, model, manufacturer…",
+            "🔍 Іздеу: сертификат нөмірі, өнім, модель, дайындаушы…",
+          )}
+          className="mt-3 w-full rounded-lg border border-[#93c5fd] bg-white px-4 py-3 text-base text-slate-900 shadow-2xs focus:border-[#0284c7] focus:outline-none"
+        />
+
+        {/* Full-width selectable certificate list */}
+        <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+          {visibleCertificates.length === 0 && (
+            <p className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-500">
+              {L(
+                "Ничего не найдено. Измените год или запрос.",
+                "Nothing found. Change the year or search.",
+                "Ештеңе табылмады.",
+              )}
+            </p>
+          )}
+          {visibleCertificates.map((cert) => {
+            const isSelected = cert.revisionId === selectedRevisionId;
+            const categoryName =
+              getLocalizedName(
+                categories.find((cat) => cat.code === cert.productCategoryCode)
+                  ?.translations ?? [],
+                locale,
+              ) ?? cert.productCategoryCode;
+            return (
+              <button
+                key={cert.revisionId}
+                type="button"
+                onClick={() => onSelectRevisionId(cert.revisionId)}
+                className={`flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border p-3.5 text-left transition ${
+                  isSelected
+                    ? "border-[#0284c7] bg-[#e0f2fe] ring-2 ring-[#0284c7]/40"
+                    : "border-slate-200 bg-white hover:border-[#93c5fd] hover:bg-[#f8fcff]"
+                }`}
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                      isSelected ? "border-[#0284c7] bg-[#0284c7]" : "border-slate-300"
+                    }`}
+                  >
+                    {isSelected && <span className="h-2 w-2 rounded-full bg-white" />}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-mono text-xs font-bold text-[#0369a1]">
+                      {cert.certificateNumber}
+                    </div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {localizeDomainText(cert.productName, locale)}
+                    </div>
+                    <div className="text-xs text-slate-600">
+                      {categoryName} · {localizeDomainText(cert.manufacturer, locale)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1 text-xs">
+                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 font-bold text-amber-900">
+                    {L("Выдан", "Issued", "Берілді")} {cert.issuedAt?.slice(0, 4) ?? "—"}
+                  </span>
+                  <span className="text-slate-500">
+                    {cert.issuedAt ?? "—"} → {cert.expiresAt ?? "—"} · {cert.tests.length}{" "}
+                    {L("исп.", "tests", "сынақ")}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* STEP 2 + STEP 3 */}
+      <div className="mb-6 grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-[#bae6fd] bg-[#f8fcff] p-4">
+          <h3 className="flex items-center text-base font-bold text-[#0c4a6e]">
+            {stepBadge(2)}
+            {L("Год, на который проверяем", "Year to check against", "Тексеру жылы")}
+          </h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {targetYearOptions.map((year) => (
+              <button
+                key={year}
+                type="button"
+                onClick={() => setTargetYear(year)}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                  targetYear === String(year)
+                    ? "bg-[#fbbf24] text-[#083344] shadow-xs ring-2 ring-[#fef08a]"
+                    : "border border-[#bae6fd] bg-white text-[#0c4a6e] hover:bg-[#e0f2fe]"
+                }`}
+              >
+                {year}
+              </button>
             ))}
-          </select>
-        </label>
-        <label className="block text-sm font-semibold text-[#0c4a6e] sm:col-span-3">
-          <span className="mr-1.5 inline-block rounded bg-[#0284c7] px-2 py-0.5 text-[11px] font-bold text-[#fef08a] uppercase">
-            {locale === "ru" ? "Шаг 2" : locale === "kk" ? "2-қадам" : "Step 2"}
-          </span>
-          {t("assessmentDate")}
-          <input
-            type="date"
-            className="mt-1.5 w-full rounded-lg border border-[#93c5fd] bg-white px-3 py-2 text-sm font-normal text-slate-900 shadow-2xs focus:border-[#0284c7] focus:outline-none"
-            value={assessmentDate}
-            onChange={(event) => onChangeAssessmentDate(event.target.value)}
-          />
-        </label>
-        <div className="sm:col-span-3">
-          <div className="mb-1.5 text-xs font-bold text-[#0c4a6e]">
-            <span className="mr-1.5 inline-block rounded bg-[#0284c7] px-2 py-0.5 text-[11px] font-bold text-[#fef08a] uppercase">
-              {locale === "ru" ? "Шаг 3" : locale === "kk" ? "3-қадам" : "Step 3"}
-            </span>
-            {locale === "ru"
-              ? "Запустите расчёт:"
-              : locale === "kk"
-                ? "Есептеуді іске қосыңыз:"
-                : "Run check:"}
           </div>
+          <label className="mt-3 block text-xs font-semibold text-slate-600">
+            {t("assessmentDate")}
+            <input
+              type="date"
+              className="mt-1 w-full rounded-lg border border-[#93c5fd] bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#0284c7] focus:outline-none"
+              value={assessmentDate}
+              onChange={(event) => onChangeAssessmentDate(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-[#bae6fd] bg-[#f8fcff] p-4">
+          <h3 className="flex items-center text-base font-bold text-[#0c4a6e]">
+            {stepBadge(3)}
+            {L("Запустите проверку", "Run the check", "Тексеруді іске қосыңыз")}
+          </h3>
+          <p className="mt-2 text-sm text-slate-700">
+            {selectedCert ? (
+              <>
+                {L("Сравниваем", "Comparing", "Салыстыру")}{" "}
+                <strong>
+                  {L("сертификат", "certificate", "сертификат")}{" "}
+                  {selectedCert.issuedAt?.slice(0, 4) ?? "—"}
+                </strong>{" "}
+                →{" "}
+                <strong>
+                  {L("нормы", "norms", "нормалар")} {targetYear}
+                </strong>
+                <span className="block truncate text-xs text-slate-500">
+                  {selectedCert.certificateNumber} —{" "}
+                  {localizeDomainText(selectedCert.productName, locale)}
+                </span>
+              </>
+            ) : (
+              <span className="text-slate-500">
+                {L(
+                  "Сначала выберите сертификат в шаге 1.",
+                  "Select a certificate in step 1 first.",
+                  "Алдымен 1-қадамда сертификат таңдаңыз.",
+                )}
+              </span>
+            )}
+          </p>
           <button
             type="button"
-            className="w-full rounded-lg bg-gradient-to-r from-[#0284c7] to-[#0097b2] px-4 py-2.5 text-sm font-bold text-white shadow-xs transition hover:from-[#0369a1] hover:to-[#0284c7] disabled:opacity-50"
+            className="mt-3 w-full rounded-lg bg-gradient-to-r from-[#0284c7] to-[#0097b2] px-4 py-3 text-base font-bold text-white shadow-xs transition hover:from-[#0369a1] hover:to-[#0284c7] disabled:opacity-50"
             disabled={runningAssessment || !selectedRevisionId || !assessmentDate}
             onClick={onRunAssessment}
           >
