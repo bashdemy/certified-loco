@@ -159,6 +159,11 @@ export const resources = {
       reviewStatus_rejected: "Rejected",
       certificateValidityLabel: "Validity period",
       certificationSchemeShort: "Scheme",
+      tabYearlyCheck: "1. Check Certificate for This Year",
+      tabCertificates: "2. Past Certificates & Protocols",
+      tabNorms: "3. ТР ТС & ГОСТ Standards Base",
+      checkThisCertButton: "Check requirements for this year →",
+      protocolNumberPlaceholder: "Protocol number (e.g. ИЛ-2023-089)",
     },
   },
   ru: {
@@ -321,6 +326,11 @@ export const resources = {
       reviewStatus_rejected: "Отклонено",
       certificateValidityLabel: "Срок действия",
       certificationSchemeShort: "Схема",
+      tabYearlyCheck: "1. Проверка сертификата на этот год",
+      tabCertificates: "2. Сертификаты и протоколы прошлых лет",
+      tabNorms: "3. Нормативы ТР ТС и ГОСТ",
+      checkThisCertButton: "Проверить требования на этот год →",
+      protocolNumberPlaceholder: "Номер протокола ИЛ (напр. ИЛ-2023-089)",
     },
   },
   kk: {
@@ -483,6 +493,11 @@ export const resources = {
       reviewStatus_rejected: "Қабылданбады",
       certificateValidityLabel: "Жарамдылық мерзімі",
       certificationSchemeShort: "Схема",
+      tabYearlyCheck: "1. Сертификатты биылға тексеру",
+      tabCertificates: "2. Алдыңғы сертификаттар мен хаттамалар",
+      tabNorms: "3. КО ТР және МЕМСТ нормативтері",
+      checkThisCertButton: "Биылғы талаптарды тексеру →",
+      protocolNumberPlaceholder: "Хаттама нөмірі (мысалы ИЛ-2023-089)",
     },
   },
 } as const;
@@ -742,6 +757,10 @@ export function localizeDomainText(
       .replace(/,\s*p\.\s*/gi, ", бет ");
   }
   return text;
+}
+
+export function getParameterLabel(key: string, locale: Locale): string {
+  return PARAMETER_LABELS[key]?.[locale] ?? key;
 }
 
 export function formatParametersLocalized(
