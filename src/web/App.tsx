@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import i18n, { detectInitialLocale, type Locale } from "../i18n/config";
 import { CertificatesTab } from "./components/CertificatesTab";
 import { StandardsTab } from "./components/StandardsTab";
+import { TutorialBanner } from "./components/TutorialBanner";
 import { YearlyCheckTab } from "./components/YearlyCheckTab";
 import type {
   ActiveTab,
@@ -51,6 +52,7 @@ export default function App() {
 
   const [managedAccounts, setManagedAccounts] = useState<ManagedAccount[]>([]);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(true);
   const [accountDrafts, setAccountDrafts] = useState<
     Record<
       string,
@@ -141,6 +143,11 @@ export default function App() {
       const meBody = (await meResponse.json()) as { data: CurrentUser };
       setCurrentUser(meBody.data);
       setAuthState("authenticated");
+      if (meBody.data.slot === "dad") {
+        setLocale("ru");
+        void i18n.changeLanguage("ru");
+        setShowTutorial(true);
+      }
 
       const [
         categoriesResponse,
@@ -560,6 +567,20 @@ export default function App() {
                 </span>
               )}
 
+              <button
+                type="button"
+                onClick={() => setShowTutorial((v) => !v)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                  showTutorial
+                    ? "border-amber-400 bg-amber-500 text-slate-950"
+                    : "border-amber-500/60 bg-slate-800 text-amber-300 hover:bg-slate-700"
+                }`}
+              >
+                {locale === "ru" || currentUser?.slot === "dad"
+                  ? "💡 Подсказки (Как работать)"
+                  : "💡 Guide & Tips"}
+              </button>
+
               {isAdmin && (
                 <button
                   type="button"
@@ -610,6 +631,16 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+        {showTutorial && (
+          <TutorialBanner
+            activeTab={activeTab}
+            locale={locale}
+            isDad={currentUser?.slot === "dad"}
+            onDismiss={() => setShowTutorial(false)}
+            onSwitchTab={setActiveTab}
+          />
+        )}
+
         {/* Team Accounts Drawer */}
         {isAdmin && showAccountSettings && (
           <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-5 shadow-sm">
