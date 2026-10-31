@@ -10,8 +10,10 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "test": "npm run test:unit",
     "test:unit": "vitest run --config vitest.config.ts tests/unit",
+    "test:integration": "vitest run --config vitest.config.ts tests/integration",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "deploy": "npm run build && wrangler deploy"
   },

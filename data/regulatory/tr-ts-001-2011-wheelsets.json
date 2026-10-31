@@ -1,0 +1,167 @@
+{
+  "regulation": {
+    "code": "ТР ТС 001/2011",
+    "name": "On Safety of Railway Rolling Stock (О безопасности железнодорожного подвижного состава)",
+    "version": {
+      "versionLabel": "Decision No. 710 (2011-07-15)",
+      "effectiveFrom": "2014-08-02",
+      "effectiveTo": null
+    }
+  },
+  "standards": [
+    {
+      "code": "ГОСТ 11018-2011",
+      "name": "Traction rolling stock for 1520 mm gauge railways. Wheelsets. General specifications",
+      "version": {
+        "versionLabel": "2011",
+        "effectiveFrom": "2012-07-01",
+        "effectiveTo": null
+      }
+    },
+    {
+      "code": "ГОСТ 4835-2013",
+      "name": "Wagon wheelsets. Specifications",
+      "version": {
+        "versionLabel": "2013",
+        "effectiveFrom": "2014-07-01",
+        "effectiveTo": null
+      }
+    }
+  ],
+  "tests": [
+    {
+      "code": "wheelset_ultrasonic_axle",
+      "name": "Ultrasonic flaw detection of axle",
+      "method": "Ultrasonic inspection",
+      "unit": "defect_class",
+      "defaultParameters": {
+        "sensitivityMm2": 2,
+        "coveragePercent": 100
+      }
+    },
+    {
+      "code": "wheelset_press_fit_force",
+      "name": "Wheel-to-axle press-fit force control",
+      "method": "Hydraulic press recording",
+      "unit": "kN/mm",
+      "defaultParameters": {
+        "minForceKnPerMm": 4.5,
+        "sampleCount": 1
+      }
+    },
+    {
+      "code": "wheelset_gauge_dimension",
+      "name": "Internal distance between wheel inner faces",
+      "method": "Dimensional measurement",
+      "unit": "mm",
+      "defaultParameters": {
+        "nominalMm": 1440,
+        "toleranceMm": 1
+      }
+    },
+    {
+      "code": "wheelset_impact_bending_cold",
+      "name": "Low-temperature impact toughness (KCU)",
+      "method": "Charpy impact test",
+      "unit": "J/cm2",
+      "defaultParameters": {
+        "temperatureC": -40,
+        "sampleCount": 3
+      }
+    }
+  ],
+  "dataset": {
+    "code": "tr-ts-001-2011-wheelsets-v1",
+    "title": "ТР ТС 001/2011 — Wheelsets Baseline Dataset v1",
+    "datasetVersion": 1,
+    "effectiveFrom": "2020-01-01",
+    "effectiveTo": null,
+    "requirements": [
+      {
+        "productCategoryCode": "wheelset_locomotive",
+        "provision": "Article 4, Section 12; Annex 1, item 10",
+        "standardCode": "ГОСТ 11018-2011",
+        "standardVersionLabel": "2011",
+        "standardClause": "Clause 5.2.4",
+        "testCode": "wheelset_ultrasonic_axle",
+        "parameters": {
+          "sensitivityMm2": 2,
+          "coveragePercent": 100
+        },
+        "effectiveFrom": "2020-01-01",
+        "effectiveTo": null,
+        "sourceReference": "ТР ТС 001/2011 & ГОСТ 11018-2011 Official Register",
+        "sourcePageSection": "Annex 1, p. 18; ГОСТ 11018-2011 Section 5.2, p. 6",
+        "extractionMethod": "manual"
+      },
+      {
+        "productCategoryCode": "wheelset_locomotive",
+        "provision": "Article 4, Section 12; Annex 1, item 10",
+        "standardCode": "ГОСТ 11018-2011",
+        "standardVersionLabel": "2011",
+        "standardClause": "Clause 4.3.2",
+        "testCode": "wheelset_press_fit_force",
+        "parameters": {
+          "minForceKnPerMm": 4.5,
+          "sampleCount": 1
+        },
+        "effectiveFrom": "2020-01-01",
+        "effectiveTo": null,
+        "sourceReference": "ТР ТС 001/2011 & ГОСТ 11018-2011 Official Register",
+        "sourcePageSection": "Annex 1, p. 18; ГОСТ 11018-2011 Section 4.3, p. 4",
+        "extractionMethod": "manual"
+      },
+      {
+        "productCategoryCode": "wheelset_locomotive",
+        "provision": "Article 4, Section 12; Annex 1, item 10",
+        "standardCode": "ГОСТ 11018-2011",
+        "standardVersionLabel": "2011",
+        "standardClause": "Clause 5.1.8",
+        "testCode": "wheelset_impact_bending_cold",
+        "parameters": {
+          "temperatureC": -40,
+          "sampleCount": 3
+        },
+        "effectiveFrom": "2020-01-01",
+        "effectiveTo": null,
+        "sourceReference": "ТР ТС 001/2011 & ГОСТ 11018-2011 Official Register",
+        "sourcePageSection": "Annex 1, p. 18; ГОСТ 11018-2011 Section 5.1, p. 5",
+        "extractionMethod": "manual"
+      },
+      {
+        "productCategoryCode": "wheelset_wagon",
+        "provision": "Article 4, Section 12; Annex 1, item 11",
+        "standardCode": "ГОСТ 4835-2013",
+        "standardVersionLabel": "2013",
+        "standardClause": "Clause 5.3.1",
+        "testCode": "wheelset_ultrasonic_axle",
+        "parameters": {
+          "sensitivityMm2": 2,
+          "coveragePercent": 100
+        },
+        "effectiveFrom": "2020-01-01",
+        "effectiveTo": null,
+        "sourceReference": "ТР ТС 001/2011 & ГОСТ 4835-2013 Official Register",
+        "sourcePageSection": "Annex 1, p. 19; ГОСТ 4835-2013 Section 5.3, p. 7",
+        "extractionMethod": "manual"
+      },
+      {
+        "productCategoryCode": "wheelset_wagon",
+        "provision": "Article 4, Section 12; Annex 1, item 11",
+        "standardCode": "ГОСТ 4835-2013",
+        "standardVersionLabel": "2013",
+        "standardClause": "Clause 4.1.2",
+        "testCode": "wheelset_gauge_dimension",
+        "parameters": {
+          "nominalMm": 1440,
+          "toleranceMm": 1
+        },
+        "effectiveFrom": "2020-01-01",
+        "effectiveTo": null,
+        "sourceReference": "ТР ТС 001/2011 & ГОСТ 4835-2013 Official Register",
+        "sourcePageSection": "Annex 1, p. 19; ГОСТ 4835-2013 Section 4.1, p. 3",
+        "extractionMethod": "manual"
+      }
+    ]
+  }
+}

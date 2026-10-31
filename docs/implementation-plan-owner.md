@@ -71,13 +71,14 @@ When the implementation is ready:
 
 1. Create the production PostgreSQL database.
 2. Create the production R2 bucket.
-3. Configure Hyperdrive for the database.
-4. Add production secrets through the approved secret mechanism.
-5. Configure the Worker route and application origin.
-6. Run migrations against production.
-7. Create the first admin account.
-8. Deploy the Worker and static assets.
-9. Confirm the health endpoint and login flow.
+3. Create the `certified-loco-documents` R2 bucket.
+4. Configure Hyperdrive for the database.
+5. Add production secrets through the approved secret mechanism.
+6. Configure the Worker route and application origin.
+7. Run migrations against production.
+8. Create the first admin account.
+9. Deploy the Worker and static assets.
+10. Confirm the health endpoint, login flow and document upload.
 
 The AI can prepare configuration files and commands, but you must review and execute the credentialed deployment.
 
