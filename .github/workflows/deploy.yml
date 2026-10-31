@@ -58,10 +58,14 @@ jobs:
         run: npm ci
 
       - name: Apply Neon database migrations (if DATABASE_URL is set)
-        if: env.DATABASE_URL != ''
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: npm run db:migrate
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            npm run db:migrate
+          else
+            echo "DATABASE_URL not set, skipping migrations."
+          fi
 
       - name: Build Worker and client assets
         run: npm run build
