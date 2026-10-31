@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n, { detectInitialLocale, type Locale } from "../i18n/config";
 import { CertificatesTab } from "./components/CertificatesTab";
@@ -88,7 +88,10 @@ export default function App() {
 
   const isAdmin = currentUser?.role === "admin";
 
+  const hasManualLocaleChoiceRef = useRef(false);
+
   const changeLocale = (nextLocale: Locale) => {
+    hasManualLocaleChoiceRef.current = true;
     setLocale(nextLocale);
     void i18n.changeLanguage(nextLocale);
     try {
@@ -143,7 +146,10 @@ export default function App() {
       const meBody = (await meResponse.json()) as { data: CurrentUser };
       setCurrentUser(meBody.data);
       setAuthState("authenticated");
-      if (meBody.data.slot === "dad") {
+      if (
+        !hasManualLocaleChoiceRef.current &&
+        (meBody.data.slot === "dad" || meBody.data.slot === "owner")
+      ) {
         setLocale("ru");
         void i18n.changeLanguage("ru");
         setShowTutorial(true);
@@ -576,7 +582,9 @@ export default function App() {
                     : "border-amber-500/60 bg-slate-800 text-amber-300 hover:bg-slate-700"
                 }`}
               >
-                {locale === "ru" || currentUser?.slot === "dad"
+                {locale === "ru" ||
+                currentUser?.slot === "dad" ||
+                currentUser?.slot === "owner"
                   ? "💡 Подсказки (Как работать)"
                   : "💡 Guide & Tips"}
               </button>
@@ -635,7 +643,7 @@ export default function App() {
           <TutorialBanner
             activeTab={activeTab}
             locale={locale}
-            isDad={currentUser?.slot === "dad"}
+            isDad={currentUser?.slot === "dad" || currentUser?.slot === "owner"}
             onDismiss={() => setShowTutorial(false)}
             onSwitchTab={setActiveTab}
           />
