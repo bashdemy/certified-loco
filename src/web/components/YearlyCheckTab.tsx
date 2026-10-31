@@ -74,24 +74,24 @@ export function YearlyCheckTab({
   return (
     <section
       id="assessments-section"
-      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-[#cde4ee] bg-white p-6 shadow-xs"
     >
       <div className="mb-5">
-        <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+        <h2 className="text-xl font-bold tracking-tight text-[#0c4a6e] sm:text-2xl">
           {t("assessments")}
         </h2>
-        <p className="mt-1 text-sm text-slate-500">{t("assessmentsDescription")}</p>
+        <p className="mt-1 text-sm text-slate-600">{t("assessmentsDescription")}</p>
       </div>
 
       {/* Step 1, Step 2 & Step 3 Selector Bar */}
-      <div className="mb-6 grid gap-4 rounded-xl border border-blue-200 bg-blue-50/70 p-4 sm:grid-cols-12 sm:items-end">
-        <label className="block text-sm font-semibold text-slate-800 sm:col-span-6">
-          <span className="mr-1.5 inline-block rounded bg-blue-700 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase">
+      <div className="mb-6 grid gap-4 rounded-xl border border-[#bae6fd] bg-gradient-to-r from-[#f0f9ff] via-[#f5fbff] to-[#fffdf5] p-4 sm:grid-cols-12 sm:items-end">
+        <label className="block text-sm font-semibold text-[#0c4a6e] sm:col-span-6">
+          <span className="mr-1.5 inline-block rounded bg-[#0284c7] px-2 py-0.5 text-[11px] font-bold text-[#fef08a] uppercase">
             {locale === "ru" ? "Шаг 1" : locale === "kk" ? "1-қадам" : "Step 1"}
           </span>
           {t("selectCertificateRevision")}
           <select
-            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 shadow-2xs"
+            className="mt-1.5 w-full rounded-lg border border-[#93c5fd] bg-white px-3 py-2.5 text-sm font-normal text-slate-900 shadow-2xs focus:border-[#0284c7] focus:outline-none"
             value={selectedRevisionId}
             onChange={(event) => onSelectRevisionId(event.target.value)}
           >
@@ -104,21 +104,21 @@ export function YearlyCheckTab({
             ))}
           </select>
         </label>
-        <label className="block text-sm font-semibold text-slate-800 sm:col-span-3">
-          <span className="mr-1.5 inline-block rounded bg-blue-700 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase">
+        <label className="block text-sm font-semibold text-[#0c4a6e] sm:col-span-3">
+          <span className="mr-1.5 inline-block rounded bg-[#0284c7] px-2 py-0.5 text-[11px] font-bold text-[#fef08a] uppercase">
             {locale === "ru" ? "Шаг 2" : locale === "kk" ? "2-қадам" : "Step 2"}
           </span>
           {t("assessmentDate")}
           <input
             type="date"
-            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 shadow-2xs"
+            className="mt-1.5 w-full rounded-lg border border-[#93c5fd] bg-white px-3 py-2 text-sm font-normal text-slate-900 shadow-2xs focus:border-[#0284c7] focus:outline-none"
             value={assessmentDate}
             onChange={(event) => onChangeAssessmentDate(event.target.value)}
           />
         </label>
         <div className="sm:col-span-3">
-          <div className="mb-1.5 text-xs font-bold text-blue-900">
-            <span className="mr-1.5 inline-block rounded bg-blue-700 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase">
+          <div className="mb-1.5 text-xs font-bold text-[#0c4a6e]">
+            <span className="mr-1.5 inline-block rounded bg-[#0284c7] px-2 py-0.5 text-[11px] font-bold text-[#fef08a] uppercase">
               {locale === "ru" ? "Шаг 3" : locale === "kk" ? "3-қадам" : "Step 3"}
             </span>
             {locale === "ru"
@@ -129,7 +129,7 @@ export function YearlyCheckTab({
           </div>
           <button
             type="button"
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-blue-500 disabled:opacity-50"
+            className="w-full rounded-lg bg-gradient-to-r from-[#0284c7] to-[#0097b2] px-4 py-2.5 text-sm font-bold text-white shadow-xs transition hover:from-[#0369a1] hover:to-[#0284c7] disabled:opacity-50"
             disabled={runningAssessment || !selectedRevisionId || !assessmentDate}
             onClick={onRunAssessment}
           >

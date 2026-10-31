@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #f2f7fa;
+    color: #0f293a;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Subtle Kazakhstan traditional geometric gold ribbon */
+.kz-gold-ribbon {
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    #d97706 0%,
+    #fbbf24 25%,
+    #fde68a 50%,
+    #fbbf24 75%,
+    #d97706 100%
+  );
+}

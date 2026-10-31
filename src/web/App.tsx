@@ -456,100 +456,108 @@ export default function App() {
 
   if (authState === "unauthenticated") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold tracking-wider text-blue-400 uppercase">
-                {t("appName")}
-              </p>
-              <h1 className="mt-1 text-xl font-bold text-white">{t("signInTitle")}</h1>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#064e73] via-[#0369a1] to-[#0097b2] px-4 text-slate-900">
+        <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[#fde047]/40 bg-white shadow-2xl">
+          <div className="kz-gold-ribbon" />
+          <div className="p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold tracking-wider text-[#0284c7] uppercase">
+                  ☀ KZ · {t("appName")}
+                </p>
+                <h1 className="mt-1 text-xl font-bold text-[#0c4a6e]">
+                  {t("signInTitle")}
+                </h1>
+              </div>
+              <div className="flex gap-1 rounded-lg border border-[#bae6fd] bg-[#f0f9ff] p-1">
+                {locales.map((item) => (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => changeLocale(item.code)}
+                    className={`rounded px-2 py-1 text-xs font-semibold ${
+                      locale === item.code
+                        ? "bg-[#0284c7] text-[#fef08a]"
+                        : "text-[#0369a1] hover:bg-[#e0f2fe]"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
-              {locales.map((item) => (
-                <button
-                  key={item.code}
-                  type="button"
-                  onClick={() => changeLocale(item.code)}
-                  className={`rounded px-2 py-1 text-xs font-semibold ${
-                    locale === item.code
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+
+            <p className="mb-6 text-sm text-slate-600">{t("signInSubtitle")}</p>
+
+            {loginError && (
+              <div className="mb-4 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                {loginError}
+              </div>
+            )}
+
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <label className="block text-xs font-semibold text-[#0c4a6e]">
+                {t("emailLabel")}
+                <input
+                  type="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="bashdemy@gmail.com"
+                  className="mt-1.5 w-full rounded-lg border border-[#93c5fd] bg-[#f8fcff] px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#0284c7] focus:outline-none"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-[#0c4a6e]">
+                {t("passwordLabel")}
+                <input
+                  type="password"
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-[#93c5fd] bg-[#f8fcff] px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#0284c7] focus:outline-none"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={signingIn}
+                className="w-full rounded-lg bg-gradient-to-r from-[#0284c7] to-[#0097b2] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:from-[#0369a1] hover:to-[#0284c7] disabled:opacity-50"
+              >
+                {signingIn ? t("signingIn") : t("signInButton")}
+              </button>
+            </form>
           </div>
-
-          <p className="mb-6 text-sm text-slate-400">{t("signInSubtitle")}</p>
-
-          {loginError && (
-            <div className="mb-4 rounded-lg border border-rose-500/40 bg-rose-950/60 px-3 py-2 text-xs text-rose-200">
-              {loginError}
-            </div>
-          )}
-
-          <form onSubmit={handleSignIn} className="space-y-4">
-            <label className="block text-xs font-medium text-slate-300">
-              {t("emailLabel")}
-              <input
-                type="email"
-                required
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="bashdemy@gmail.com"
-                className="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-              />
-            </label>
-            <label className="block text-xs font-medium text-slate-300">
-              {t("passwordLabel")}
-              <input
-                type="password"
-                required
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={signingIn}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
-            >
-              {signingIn ? t("signingIn") : t("signInButton")}
-            </button>
-          </form>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      {/* Clean Header */}
-      <header className="border-b border-slate-200 bg-slate-900 text-white">
+    <div className="min-h-screen bg-[#f2f7fa] text-slate-900">
+      {/* Kazakhstan Sky-Turquoise & Sun Gold Header */}
+      <header className="bg-gradient-to-r from-[#075985] via-[#0284c7] to-[#0097b2] text-white shadow-md">
+        <div className="kz-gold-ribbon" />
         <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold tracking-wider text-blue-400 uppercase">
-                {t("appEyebrow")}
+              <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-[#fde047] uppercase">
+                <span>☀</span> {t("appEyebrow")}
               </p>
-              <h1 className="mt-1 text-xl font-bold sm:text-2xl">{t("headline")}</h1>
+              <h1 className="mt-1 text-xl font-bold tracking-tight text-white sm:text-2xl">
+                {t("headline")}
+              </h1>
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex rounded-lg border border-slate-700 bg-slate-800 p-1">
+              <div className="flex rounded-lg border border-white/25 bg-[#064e73]/70 p-1">
                 {locales.map((item) => (
                   <button
                     key={item.code}
                     type="button"
                     onClick={() => changeLocale(item.code)}
-                    className={`rounded px-2.5 py-1 text-xs font-semibold transition ${
+                    className={`rounded px-2.5 py-1 text-xs font-bold transition ${
                       locale === item.code
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-300 hover:text-white"
+                        ? "bg-[#fbbf24] text-[#0c4a6e]"
+                        : "text-sky-100 hover:text-white"
                     }`}
                   >
                     {item.label}
@@ -558,17 +566,17 @@ export default function App() {
               </div>
 
               <span
-                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                   health === "ok"
-                    ? "bg-emerald-950 text-emerald-300 ring-1 ring-emerald-700"
-                    : "bg-rose-950 text-rose-300"
+                    ? "bg-emerald-950/60 text-emerald-200 ring-1 ring-emerald-400/50"
+                    : "bg-rose-950/70 text-rose-200"
                 }`}
               >
                 {health === "ok" ? t("apiConnected") : t("apiUnavailable")}
               </span>
 
               {currentUser && (
-                <span className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-200">
+                <span className="rounded-lg border border-white/20 bg-[#064e73]/60 px-3 py-1 text-xs font-medium text-sky-50">
                   {currentUser.displayName ?? currentUser.email}
                 </span>
               )}
@@ -576,10 +584,10 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowTutorial((v) => !v)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
                   showTutorial
-                    ? "border-amber-400 bg-amber-500 text-slate-950"
-                    : "border-amber-500/60 bg-slate-800 text-amber-300 hover:bg-slate-700"
+                    ? "border-[#fde047] bg-[#fbbf24] text-[#0c4a6e] shadow-xs"
+                    : "border-[#fde047]/60 bg-[#064e73]/70 text-[#fde047] hover:bg-[#064e73]"
                 }`}
               >
                 {locale === "ru" ||
@@ -593,7 +601,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowAccountSettings((v) => !v)}
-                  className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+                  className="rounded-lg border border-white/25 bg-[#064e73]/60 px-3 py-1.5 text-xs font-medium text-sky-50 hover:bg-[#064e73]"
                 >
                   {t("manageAccounts")}
                 </button>
@@ -602,7 +610,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="rounded-lg border border-rose-800/70 bg-rose-950/60 px-3 py-1.5 text-xs font-medium text-rose-200 hover:bg-rose-900/60"
+                className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20"
               >
                 {t("signOutButton")}
               </button>
@@ -610,7 +618,7 @@ export default function App() {
           </div>
 
           {/* 3-Tab Navigation Bar */}
-          <nav className="mt-5 flex flex-wrap gap-2 border-t border-slate-800 pt-4">
+          <nav className="mt-5 flex flex-wrap gap-2.5 border-t border-white/20 pt-4">
             {(
               [
                 { id: "check", label: t("tabYearlyCheck") },
@@ -625,10 +633,10 @@ export default function App() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
                   activeTab === tab.id
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "bg-[#fbbf24] text-[#083344] shadow-sm ring-2 ring-[#fef08a]"
+                    : "bg-[#064e73]/65 text-sky-50 hover:bg-[#064e73] hover:text-white"
                 }`}
               >
                 {tab.label}
