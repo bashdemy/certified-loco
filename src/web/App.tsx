@@ -11,10 +11,23 @@ import i18n, { type Locale } from "../i18n/config";
 type HealthState = "checking" | "ok" | "error";
 type LoadState = "loading" | "ready" | "error";
 type AuditState = "loading" | "ready" | "error" | "hidden";
+type AuthState = "checking" | "authenticated" | "unauthenticated";
 
 type CurrentUser = {
   email: string;
   role: "admin" | "user";
+  displayName?: string;
+  slot?: string;
+};
+
+type ManagedAccount = {
+  id: string;
+  slot: "owner" | "dad";
+  email: string;
+  displayName: string;
+  role: "admin" | "user";
+  isActive: boolean;
+  updatedAt: string;
 };
 
 type ProductCategory = {
@@ -219,7 +232,24 @@ function getCategoryName(category: ProductCategory, locale: Locale) {
 function App() {
   const { t } = useTranslation();
   const [health, setHealth] = useState<HealthState>("checking");
+  const [authState, setAuthState] = useState<AuthState>("checking");
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [showAccountsPanel, setShowAccountsPanel] = useState(false);
+  const [managedAccounts, setManagedAccounts] = useState<ManagedAccount[]>([]);
+  const [accountDrafts, setAccountDrafts] = useState<
+    Record<
+      string,
+      { email: string; displayName: string; role: "admin" | "user"; password: string }
+    >
+  >({});
+  const [savingAccountSlot, setSavingAccountSlot] = useState<string | null>(null);
+  const [accountMessage, setAccountMessage] = useState<string | null>(null);
+
   const [catalogueState, setCatalogueState] = useState<LoadState>("loading");
   const [auditState, setAuditState] = useState<AuditState>("loading");
   const [certificateState, setCertificateState] = useState<LoadState>("loading");
@@ -281,6 +311,30 @@ function App() {
 
   const isAdmin = currentUser?.role !== "user";
 
+  const loadManagedAccounts = async () => {
+    try {
+      const response = await fetch("/api/users");
+      if (!response.ok) return;
+      const result = (await response.json()) as { data: ManagedAccount[] };
+      setManagedAccounts(result.data);
+      const drafts: Record<
+        string,
+        { email: string; displayName: string; role: "admin" | "user"; password: string }
+      > = {};
+      for (const acc of result.data) {
+        drafts[acc.slot] = {
+          email: acc.email,
+          displayName: acc.displayName,
+          role: acc.role,
+          password: "",
+        };
+      }
+      setAccountDrafts(drafts);
+    } catch {
+      // ignore
+    }
+  };
+
   const loadAll = async () => {
     fetch("/api/health")
       .then((response) => {
@@ -289,13 +343,27 @@ function App() {
       })
       .catch(() => setHealth("error"));
 
-    fetch("/api/me")
-      .then(async (response) => {
-        if (!response.ok) return;
-        const result = (await response.json()) as { data: CurrentUser };
-        setCurrentUser(result.data);
-      })
-      .catch(() => undefined);
+    try {
+      const meResponse = await fetch("/api/me");
+      if (meResponse.status === 401) {
+        setCurrentUser(null);
+        setAuthState("unauthenticated");
+        return;
+      }
+      if (!meResponse.ok) {
+        setAuthState("unauthenticated");
+        return;
+      }
+      const meResult = (await meResponse.json()) as { data: CurrentUser };
+      setCurrentUser(meResult.data);
+      setAuthState("authenticated");
+      if (meResult.data.role === "admin") {
+        void loadManagedAccounts();
+      }
+    } catch {
+      setAuthState("unauthenticated");
+      return;
+    }
 
     fetch("/api/product-categories")
       .then(async (response) => {
@@ -377,6 +445,67 @@ function App() {
   useEffect(() => {
     void loadAll();
   }, []);
+
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSigningIn(true);
+    setLoginError(null);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+        }),
+      });
+      if (!response.ok) {
+        setLoginError(t("invalidCredentials"));
+        return;
+      }
+      setLoginPassword("");
+      await loadAll();
+    } catch {
+      setLoginError(t("invalidCredentials"));
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setCurrentUser(null);
+    setAuthState("unauthenticated");
+  };
+
+  const saveManagedAccount = async (slot: "owner" | "dad") => {
+    const draftAcc = accountDrafts[slot];
+    if (!draftAcc) return;
+    setSavingAccountSlot(slot);
+    setAccountMessage(null);
+    try {
+      const response = await fetch(`/api/users/${slot}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: draftAcc.email,
+          displayName: draftAcc.displayName,
+          role: draftAcc.role,
+          password: draftAcc.password || undefined,
+        }),
+      });
+      if (!response.ok) {
+        setAccountMessage(t("saveFailed"));
+        return;
+      }
+      await loadManagedAccounts();
+      setAccountMessage(t("accountUpdated"));
+    } catch {
+      setAccountMessage(t("saveFailed"));
+    } finally {
+      setSavingAccountSlot(null);
+    }
+  };
 
   const refreshAuditAndDatasets = async () => {
     const [dsRes, auditRes] = await Promise.all([
@@ -762,9 +891,80 @@ function App() {
     })),
   );
 
+  if (authState === "unauthenticated") {
+    return (
+      <main className="mx-auto flex min-h-screen w-[calc(100%-2rem)] max-w-md flex-col justify-center py-12 text-slate-900">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-extrabold tracking-[0.11em] text-slate-500 uppercase">
+              {t("appEyebrow")}
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              {t("appName")}
+            </h1>
+          </div>
+          <select
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm"
+            value={locale}
+            onChange={(event) => changeLocale(event.target.value as Locale)}
+          >
+            {(Object.keys(localeLabels) as Locale[]).map((language) => (
+              <option key={language} value={language}>
+                {localeLabels[language]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="mb-1 text-xl font-bold text-slate-900">{t("signInTitle")}</h2>
+          <p className="mb-6 text-sm text-slate-500">{t("signInSubtitle")}</p>
+
+          {loginError && (
+            <p className="mb-4 rounded-xl bg-rose-100 px-3 py-2 text-sm font-semibold text-rose-900">
+              {loginError}
+            </p>
+          )}
+
+          <form onSubmit={(e) => void handleLogin(e)} className="grid gap-4">
+            <label className="block text-sm font-semibold text-slate-700">
+              {t("emailLabel")}
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-900"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm font-semibold text-slate-700">
+              {t("passwordLabel")}
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal text-slate-900"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={signingIn}
+              className="mt-2 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {signingIn ? t("signingIn") : t("signInButton")}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-[calc(100%-2rem)] max-w-6xl bg-slate-50 py-8 pb-16 text-slate-900 sm:py-12">
-      <header className="mb-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
+      <header className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <p className="mb-2 text-xs font-extrabold tracking-[0.11em] text-slate-500 uppercase">
             {t("appEyebrow")}
@@ -774,18 +974,39 @@ function App() {
           </h1>
           {currentUser && (
             <p className="mt-1 text-xs font-semibold text-slate-500">
+              {currentUser.displayName ? `${currentUser.displayName} · ` : ""}
               {currentUser.email} ({currentUser.role})
             </p>
           )}
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
-          <span
-            className={`rounded-full px-3 py-2 text-xs font-extrabold ${healthStyles[health]}`}
-          >
-            {health === "checking" && t("checkingApi")}
-            {health === "ok" && t("apiConnected")}
-            {health === "error" && t("apiUnavailable")}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-2 text-xs font-extrabold ${healthStyles[health]}`}
+            >
+              {health === "checking" && t("checkingApi")}
+              {health === "ok" && t("apiConnected")}
+              {health === "error" && t("apiUnavailable")}
+            </span>
+            {isAdmin && managedAccounts.length > 0 && (
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-100"
+                onClick={() => setShowAccountsPanel((prev) => !prev)}
+              >
+                {t("manageAccounts")}
+              </button>
+            )}
+            {currentUser && currentUser.email !== "local@development" && (
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                onClick={() => void handleLogout()}
+              >
+                {t("signOutButton")}
+              </button>
+            )}
+          </div>
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <span className="sr-only">Language</span>
             <select
@@ -802,6 +1023,123 @@ function App() {
           </label>
         </div>
       </header>
+
+      {isAdmin && showAccountsPanel && (
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">{t("manageAccounts")}</h2>
+              <p className="text-xs text-slate-500">
+                Configure your account and your dad&apos;s account (leave password blank
+                to keep current).
+              </p>
+            </div>
+            <button
+              type="button"
+              className="text-xs font-bold text-slate-500 hover:text-slate-800"
+              onClick={() => setShowAccountsPanel(false)}
+            >
+              {t("cancel")}
+            </button>
+          </div>
+          {accountMessage && (
+            <p className="mb-4 rounded-xl bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-900">
+              {accountMessage}
+            </p>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(["owner", "dad"] as const).map((slot) => {
+              const draftAcc = accountDrafts[slot] ?? {
+                email: "",
+                displayName: slot === "owner" ? "Maria" : "Dad",
+                role: "admin",
+                password: "",
+              };
+              return (
+                <div
+                  key={slot}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <p className="mb-2 text-xs font-extrabold tracking-wider text-blue-700 uppercase">
+                    {slot === "owner" ? "Account 1 · Owner" : "Account 2 · Dad"}
+                  </p>
+                  <div className="grid gap-2">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Name
+                      <input
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal"
+                        value={draftAcc.displayName}
+                        onChange={(e) =>
+                          setAccountDrafts((prev) => ({
+                            ...prev,
+                            [slot]: { ...draftAcc, displayName: e.target.value },
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-700">
+                      {t("emailLabel")}
+                      <input
+                        type="email"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal"
+                        value={draftAcc.email}
+                        onChange={(e) =>
+                          setAccountDrafts((prev) => ({
+                            ...prev,
+                            [slot]: { ...draftAcc, email: e.target.value },
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-700">
+                      Role
+                      <select
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal"
+                        value={draftAcc.role}
+                        onChange={(e) =>
+                          setAccountDrafts((prev) => ({
+                            ...prev,
+                            [slot]: {
+                              ...draftAcc,
+                              role: e.target.value as "admin" | "user",
+                            },
+                          }))
+                        }
+                      >
+                        <option value="admin">admin</option>
+                        <option value="user">user (read-only)</option>
+                      </select>
+                    </label>
+                    <label className="text-xs font-semibold text-slate-700">
+                      New password (min 8 chars, optional)
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal"
+                        value={draftAcc.password}
+                        onChange={(e) =>
+                          setAccountDrafts((prev) => ({
+                            ...prev,
+                            [slot]: { ...draftAcc, password: e.target.value },
+                          }))
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={savingAccountSlot === slot}
+                      className="mt-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                      onClick={() => void saveManagedAccount(slot)}
+                    >
+                      {savingAccountSlot === slot ? t("saving") : t("save")}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="mb-4 rounded-[22px] bg-slate-900 p-6 text-slate-100 shadow-xl sm:p-12">
         <p className="mb-2 text-xs font-extrabold tracking-[0.11em] text-slate-400 uppercase">

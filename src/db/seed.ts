@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
 import {
+  appUsers,
   certificateRevisions,
   certificateRevisionTests,
   certificates,
@@ -18,6 +19,7 @@ import {
   standardVersions,
   tests,
 } from "./schema";
+import { hashPassword } from "../infrastructure/auth/cloudflare-access";
 
 const developmentCategories = [
   {
@@ -343,6 +345,44 @@ export async function seedDatabase(connectionString: string) {
             sourcePageSection: "Protocol PR-2022-014, p. 4",
           },
         ]);
+      }
+
+      const defaultAccounts = [
+        {
+          slot: "owner",
+          email: (process.env.INITIAL_OWNER_EMAIL ?? "bashdemy@gmail.com").toLowerCase(),
+          displayName: "Maria",
+          role: "admin",
+          password: process.env.INITIAL_OWNER_PASSWORD ?? "CertifiedLoco2026!",
+        },
+        {
+          slot: "dad",
+          email: (
+            process.env.INITIAL_DAD_EMAIL ?? "dad@certified-loco.local"
+          ).toLowerCase(),
+          displayName: "Dad",
+          role: "admin",
+          password: process.env.INITIAL_DAD_PASSWORD ?? "DadLoco2026!",
+        },
+      ];
+
+      for (const acc of defaultAccounts) {
+        const existingUser = await tx
+          .select()
+          .from(appUsers)
+          .where(eq(appUsers.slot, acc.slot));
+
+        if (existingUser.length === 0) {
+          const passwordHash = await hashPassword(acc.password);
+          await tx.insert(appUsers).values({
+            slot: acc.slot,
+            email: acc.email,
+            displayName: acc.displayName,
+            role: acc.role,
+            passwordHash,
+            isActive: true,
+          });
+        }
       }
     });
 

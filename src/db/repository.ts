@@ -18,6 +18,7 @@ import {
   type ProductCategoryTranslationInput,
 } from "../domain/product-category-translations";
 import {
+  appUsers,
   assessments,
   auditEvents,
   certificateRevisionDocuments,
@@ -35,6 +36,12 @@ import {
   standardVersions,
   tests,
 } from "./schema";
+import {
+  hashPassword,
+  verifyPassword,
+  type AuthenticatedUser,
+  type AuthRole,
+} from "../infrastructure/auth/cloudflare-access";
 
 export type ProductCategoryWithTranslations = {
   id: string;
@@ -2187,6 +2194,195 @@ export async function listAssessments(
         inputSnapshot: (row.inputSnapshotJson ?? {}) as Record<string, unknown>,
         createdByEmail: row.createdByEmail,
         createdAt: row.createdAt,
+      };
+    });
+  } finally {
+    await client.end();
+  }
+}
+
+export type AppUserSummary = {
+  id: string;
+  slot: string;
+  email: string;
+  displayName: string;
+  role: AuthRole;
+  isActive: boolean;
+  updatedAt: Date;
+};
+
+export async function authenticateAppUser(
+  connectionString: string,
+  email: string,
+  password: string,
+): Promise<AuthenticatedUser | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !password) return null;
+
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    const db = drizzle(client);
+    const [user] = await db
+      .select()
+      .from(appUsers)
+      .where(and(eq(appUsers.email, normalizedEmail), eq(appUsers.isActive, true)));
+
+    if (!user) return null;
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) return null;
+
+    return {
+      email: user.email,
+      role: user.role === "admin" ? "admin" : "user",
+      displayName: user.displayName,
+      slot: user.slot,
+    };
+  } finally {
+    await client.end();
+  }
+}
+
+export async function listAppUsers(connectionString: string): Promise<AppUserSummary[]> {
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    const db = drizzle(client);
+    const rows = await db.select().from(appUsers).orderBy(asc(appUsers.createdAt));
+
+    return rows.map((row) => ({
+      id: row.id,
+      slot: row.slot,
+      email: row.email,
+      displayName: row.displayName,
+      role: row.role === "admin" ? "admin" : "user",
+      isActive: row.isActive,
+      updatedAt: row.updatedAt,
+    }));
+  } finally {
+    await client.end();
+  }
+}
+
+export async function upsertAppUserAccount(
+  connectionString: string,
+  input: {
+    slot: string;
+    email: string;
+    displayName: string;
+    role: AuthRole;
+    password?: string | null;
+    isActive?: boolean;
+    actorEmail: string;
+    requestId: string;
+  },
+): Promise<AppUserSummary> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    const db = drizzle(client);
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(appUsers)
+        .where(eq(appUsers.slot, input.slot));
+
+      const newHash =
+        input.password && input.password.trim().length > 0
+          ? await hashPassword(input.password)
+          : existing?.passwordHash;
+
+      if (!newHash) {
+        throw new Error("password_required_for_new_user");
+      }
+
+      if (existing) {
+        const [updated] = await tx
+          .update(appUsers)
+          .set({
+            email: normalizedEmail,
+            displayName: input.displayName.trim(),
+            role: input.role,
+            passwordHash: newHash,
+            isActive: input.isActive ?? existing.isActive,
+            updatedAt: new Date(),
+          })
+          .where(eq(appUsers.id, existing.id))
+          .returning();
+
+        await tx.insert(auditEvents).values({
+          actorEmail: input.actorEmail,
+          action: "user_account.updated",
+          entityType: "app_user",
+          entityId: updated.id,
+          requestId: input.requestId,
+          beforeJson: {
+            slot: existing.slot,
+            email: existing.email,
+            displayName: existing.displayName,
+            role: existing.role,
+            isActive: existing.isActive,
+          },
+          afterJson: {
+            slot: updated.slot,
+            email: updated.email,
+            displayName: updated.displayName,
+            role: updated.role,
+            isActive: updated.isActive,
+            passwordChanged: Boolean(input.password && input.password.trim().length > 0),
+          },
+        });
+
+        return {
+          id: updated.id,
+          slot: updated.slot,
+          email: updated.email,
+          displayName: updated.displayName,
+          role: updated.role === "admin" ? "admin" : "user",
+          isActive: updated.isActive,
+          updatedAt: updated.updatedAt,
+        };
+      }
+
+      const [created] = await tx
+        .insert(appUsers)
+        .values({
+          slot: input.slot,
+          email: normalizedEmail,
+          displayName: input.displayName.trim(),
+          role: input.role,
+          passwordHash: newHash,
+          isActive: input.isActive ?? true,
+        })
+        .returning();
+
+      await tx.insert(auditEvents).values({
+        actorEmail: input.actorEmail,
+        action: "user_account.created",
+        entityType: "app_user",
+        entityId: created.id,
+        requestId: input.requestId,
+        afterJson: {
+          slot: created.slot,
+          email: created.email,
+          displayName: created.displayName,
+          role: created.role,
+          isActive: created.isActive,
+        },
+      });
+
+      return {
+        id: created.id,
+        slot: created.slot,
+        email: created.email,
+        displayName: created.displayName,
+        role: created.role === "admin" ? "admin" : "user",
+        isActive: created.isActive,
+        updatedAt: created.updatedAt,
       };
     });
   } finally {

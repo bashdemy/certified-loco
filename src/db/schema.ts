@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   index,
   integer,
@@ -360,6 +361,25 @@ export const assessments = pgTable(
   ],
 );
 
+export const appUsers = pgTable(
+  "app_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    slot: varchar("slot", { length: 50 }).notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    displayName: varchar("display_name", { length: 120 }).notNull(),
+    role: varchar("role", { length: 20 }).notNull().default("admin"),
+    passwordHash: varchar("password_hash", { length: 500 }).notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("app_users_slot_idx").on(table.slot),
+    uniqueIndex("app_users_email_idx").on(table.email),
+  ],
+);
+
 export type ProductCategory = typeof productCategories.$inferSelect;
 export type NewProductCategory = typeof productCategories.$inferInsert;
 export type ProductCategoryTranslation = typeof productCategoryTranslations.$inferSelect;
@@ -384,3 +404,4 @@ export type CertificateRevisionTest = typeof certificateRevisionTests.$inferSele
 export type RegulatoryDataset = typeof regulatoryDatasets.$inferSelect;
 export type RequirementRecord = typeof requirements.$inferSelect;
 export type AssessmentRecord = typeof assessments.$inferSelect;
+export type AppUserRecord = typeof appUsers.$inferSelect;

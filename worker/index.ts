@@ -4,6 +4,7 @@ import {
   archiveCertificate,
   archiveProductCategory,
   archiveTest,
+  authenticateAppUser,
   confirmCertificateRevision,
   createCertificate,
   createCertificateRevision,
@@ -15,6 +16,7 @@ import {
   createTest,
   getProductCategory,
   listActiveProductCategories,
+  listAppUsers,
   listAssessments,
   listCertificates,
   listDocumentsForCertificateRevision,
@@ -28,15 +30,22 @@ import {
   runAssessment,
   updateProductCategory,
   updateTest,
+  upsertAppUserAccount,
 } from "../src/db/repository";
 import { parseProductCategoryTranslations } from "../src/domain/product-category-translations";
-import { authenticateRequest } from "../src/infrastructure/auth/cloudflare-access";
+import {
+  authenticateRequest,
+  buildClearSessionCookie,
+  buildSessionCookie,
+  createSessionToken,
+} from "../src/infrastructure/auth/cloudflare-access";
 
 export interface Env {
   DATABASE_URL?: string;
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUDIENCE?: string;
   ADMIN_EMAILS?: string;
+  AUTH_SECRET?: string;
   DOCUMENTS?: R2Bucket;
   HYPERDRIVE?: {
     connectionString: string;
@@ -96,11 +105,68 @@ export default {
       return new Response("Not found", { status: 404 });
     }
 
+    const connectionString = getConnectionString(env);
+    const isSecureCookie = url.protocol === "https:";
+
+    if (url.pathname === "/api/auth/logout") {
+      if (request.method !== "POST") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      return Response.json(
+        { status: "ok" },
+        {
+          headers: {
+            "Set-Cookie": buildClearSessionCookie(isSecureCookie),
+          },
+        },
+      );
+    }
+
+    if (url.pathname === "/api/auth/login") {
+      if (request.method !== "POST") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      if (!connectionString || !env.AUTH_SECRET) {
+        return Response.json({ error: "auth_not_configured" }, { status: 503 });
+      }
+
+      try {
+        const body = (await request.json()) as Record<string, unknown>;
+        const email = readText(body, "email", true);
+        const password = typeof body.password === "string" ? body.password : "";
+        if (!email || !password) {
+          return Response.json({ error: "invalid_credentials" }, { status: 401 });
+        }
+
+        const authenticatedUser = await authenticateAppUser(
+          connectionString,
+          email,
+          password,
+        );
+        if (!authenticatedUser) {
+          return Response.json({ error: "invalid_credentials" }, { status: 401 });
+        }
+
+        const token = await createSessionToken(authenticatedUser, env.AUTH_SECRET);
+        return Response.json(
+          { data: authenticatedUser },
+          {
+            headers: {
+              "Set-Cookie": buildSessionCookie(token, isSecureCookie),
+            },
+          },
+        );
+      } catch (error) {
+        console.error("Failed to process login", error);
+        return Response.json({ error: "auth_unavailable" }, { status: 503 });
+      }
+    }
+
     const user = await authenticateRequest(request, env);
     if (!user) {
       return Response.json(
         { error: "authentication_required" },
-        { status: 401, headers: { "WWW-Authenticate": "Cloudflare Access" } },
+        { status: 401, headers: { "WWW-Authenticate": "Bearer" } },
       );
     }
 
@@ -111,7 +177,6 @@ export default {
       return Response.json({ data: user });
     }
 
-    const connectionString = getConnectionString(env);
     if (!connectionString) {
       return Response.json(
         {
@@ -121,6 +186,61 @@ export default {
         },
         { status: 503 },
       );
+    }
+
+    const userSlotMatch = url.pathname.match(/^\/api\/users\/([^/]+)$/);
+    if (url.pathname === "/api/users" || userSlotMatch) {
+      if (user.role !== "admin") {
+        return Response.json({ error: "admin_required" }, { status: 403 });
+      }
+
+      try {
+        if (url.pathname === "/api/users") {
+          if (request.method !== "GET") {
+            return new Response("Method not allowed", { status: 405 });
+          }
+          return Response.json({ data: await listAppUsers(connectionString) });
+        }
+
+        if (userSlotMatch) {
+          if (request.method !== "PUT") {
+            return new Response("Method not allowed", { status: 405 });
+          }
+          const slot = decodeURIComponent(userSlotMatch[1]);
+          if (slot !== "owner" && slot !== "dad") {
+            return Response.json({ error: "invalid_slot" }, { status: 400 });
+          }
+          const body = (await request.json()) as Record<string, unknown>;
+          const email = readText(body, "email", true);
+          const displayName = readText(body, "displayName", true);
+          const role = body.role === "user" ? "user" : "admin";
+          const password =
+            typeof body.password === "string" && body.password.trim().length > 0
+              ? body.password.trim()
+              : null;
+
+          if (!email || !displayName) {
+            return Response.json({ error: "invalid_user_account" }, { status: 400 });
+          }
+          if (password && password.length < 8) {
+            return Response.json({ error: "password_too_short" }, { status: 400 });
+          }
+
+          const updated = await upsertAppUserAccount(connectionString, {
+            slot,
+            email,
+            displayName,
+            role,
+            password,
+            actorEmail: user.email,
+            requestId: getRequestId(request),
+          });
+          return Response.json({ data: updated });
+        }
+      } catch (error) {
+        console.error("Failed to manage user accounts", error);
+        return Response.json({ error: "users_unavailable" }, { status: 503 });
+      }
     }
 
     // Document uploads & listings on certificate revisions
